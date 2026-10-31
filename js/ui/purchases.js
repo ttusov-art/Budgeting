@@ -35,7 +35,7 @@ export function render(main, ctx) {
       <section class="card" aria-label="To sort">
         <div class="card-head">
           <h2><span class="step">1</span> To sort <span class="muted small" data-testid="sort-count">${queue.length}</span></h2>
-          <button class="btn small-btn" data-act="import" title="Import Revolut statement (I)">Import CSV <kbd>I</kbd></button>
+          <button class="btn primary small-btn" data-act="import" title="Import Revolut statement (I)">Import CSV <kbd>I</kbd></button>
           <input id="csv-file" type="file" accept=".csv,text/csv,text/comma-separated-values,application/vnd.ms-excel" hidden>
         </div>
         <p class="muted small" style="margin:0 0 8px">Only ${esc(monthLabel(month))} purchases are imported and shown here.</p>

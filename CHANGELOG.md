@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-31 zh
+- Purchases: Import CSV is a green main button.
+
 ## 2026-10-31 zg
 - Import results stay on screen until you tap OK. Other messages stay longer when they are longer.
 
