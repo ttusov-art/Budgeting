@@ -241,6 +241,10 @@ def run(p):
     check("deleting it brings back the first check-in", "59,61" in page.get_by_test_id("remaining").inner_text())
     meta = page.evaluate("[...document.querySelectorAll('meta[name=theme-color]')].map(m => m.content + ' ' + m.media)")
     check("status bar colour follows light/dark background, not green", all("#2f6b4f" not in m for m in meta) and len(meta) == 2)
+    pills = page.evaluate("""() => [...document.querySelectorAll('button, .btn, input, .badge, .chip-btn, .status, .version-tag, .pace-pill, .seg, .card, .toast')]
+        .filter(el => { const r = parseFloat(getComputedStyle(el).borderTopLeftRadius); return r > 14; })
+        .map(el => el.className || el.tagName)""")
+    check("no pill- or egg-shaped buttons or panels (corners ≤ 14 px)", pills == [])
     check("version is shown on the wallet page", "2026-" in page.get_by_test_id("version").inner_text())
     check("no Add purchase button any more", page.get_by_role("button", name=re.compile("Add purchase")).count() == 0)
 

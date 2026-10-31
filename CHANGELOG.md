@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-31 r
+- One corner style everywhere: rectangles with slightly rounded corners (panels 12 px, buttons/inputs/chips 10 px, tags 6 px). No more pill or circle buttons. Set once as tokens at the top of css/style.css.
+
 ## 2026-10-31 q
 - Locking needs both: the month locks when both have approved the same numbers, and unlocks only when both agree. Each phone votes for its owner (Settings → This phone belongs to).
 - An approval is tied to the numbers: changing salaries, wallet budget, carry-over, fixed costs or big-cost shares after approving asks for approval again.
