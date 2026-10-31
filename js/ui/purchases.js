@@ -182,9 +182,10 @@ function expenseRow(e) {
   </button></li>`;
 }
 
-// Opens the Revolut app on Android. Chrome understands these "intent:" links;
-// if it can't open Revolut directly, it shows Revolut in the Play Store, which has an Open button.
-const REVOLUT_APP = 'intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=com.revolut.revolut;end';
+// Opens the Revolut app on Android: Revolut's app catches this web address
+// (tested on our phone; its start screen can't be opened with an "intent:" link).
+// Without the app installed it simply opens Revolut's website.
+const REVOLUT_APP = 'https://www.revolut.com/app/';
 const isAndroid = () => /Android/i.test(navigator.userAgent);
 
 /**

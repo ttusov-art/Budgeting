@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-31 zf
+- Open Revolut now opens the Revolut app directly (via revolut.com/app, which the app catches) instead of the Play Store.
+
 ## 2026-10-31 ze
 - Purchases: on the phone, Import CSV asks: Open Revolut (with the three export steps) or Choose file. On a computer it still opens the file picker straight away.
 

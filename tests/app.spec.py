@@ -557,7 +557,7 @@ def run(p):
     tonis.goto(BASE + "#buys")
     tonis.get_by_role("button", name=re.compile("Import CSV")).click()
     link = tonis.locator("#form-dialog a", has_text="Open Revolut")
-    check("phone: Import CSV offers Open Revolut", link.is_visible() and "package=com.revolut.revolut" in (link.get_attribute("href") or ""))
+    check("phone: Import CSV offers Open Revolut", link.is_visible() and (link.get_attribute("href") or "") == "https://www.revolut.com/app/")
     with tonis.expect_file_chooser(timeout=2000) as fc:
         tonis.get_by_role("button", name="Choose file").click()
     check("phone: Choose file opens the file picker", fc.value is not None)
