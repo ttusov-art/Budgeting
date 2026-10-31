@@ -5,7 +5,7 @@ Once a month: enter salaries, the wallet budget and fixed costs, and the app tel
 private money and how much to deposit into the shared wallet (Revolut). During the month: check in
 with the Revolut balance and see whether you are ahead of or behind plan.
 
-Setup: see **SETUP.md**.
+Setup: see **SETUP.md**. Updates are tested and pushed to this repository directly; after a push, press **Reload** in the app's update banner.
 
 ## How the money works
 
