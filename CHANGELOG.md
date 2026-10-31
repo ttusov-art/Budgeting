@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-31 e
+- Version shown at the top of the Wallet page.
+- "Add purchase" removed: check-ins use the actual Revolut balance.
+- New "Add money" (shortcut A): personal money put into the wallet. It raises the balance but is not counted as negative spending and does not raise the budget.
+- Carry-over is automatic: a month starts with the previous month's last check-in balance (can be overridden on the Month screen).
+- Budget vs. actual compares spending with the agreed wallet budget only.
+
 ## 2026-10-31 d
 - Fix: "Reload" for a new version could bring back the old version on the laptop for up to 10 minutes (GitHub Pages caching). The service worker now has Chrome re-check every file, and Reload clears saved copies first.
 - New test: tests/update.spec.py checks updates arrive through GitHub-like caching.

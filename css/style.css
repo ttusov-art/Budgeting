@@ -203,6 +203,9 @@ kbd {
 
 /* ---------- wallet hero ---------- */
 
+.hero-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.page-top { display: flex; justify-content: flex-end; }
+.version-tag { font-size: 0.72rem; color: var(--ink-soft); background: var(--surface-2); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
 .hero .label { font-size: 0.85rem; color: var(--ink-soft); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
 .hero .big { font-size: clamp(2.2rem, 9vw, 3rem); font-weight: 750; letter-spacing: -0.03em; line-height: 1.1; margin: 4px 0 2px; }
 .hero .big.negative { color: var(--bad); }

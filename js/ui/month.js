@@ -15,7 +15,7 @@ export function render(main, ctx) {
     return;
   }
 
-  const { m, fixed, spreadShares: shares, plan, startBalance } = state.planFor(month);
+  const { m, fixed, spreadShares: shares, plan, carry, startBalance } = state.planFor(month);
   const incomes = state.getIncomes(month);
   const s = state.getSettings();
   const paidCount = fixed.filter((f) => f.paid).length;
@@ -30,7 +30,7 @@ export function render(main, ctx) {
           ${moneyField('income-t', `${s.names.t}'s salary`, incomes.t)}
           ${moneyField('income-k', `${s.names.k}'s salary`, incomes.k)}
           ${moneyField('wallet-budget', 'Wallet budget for everyday spending', m.walletBudget)}
-          ${moneyField('carry-over', 'Left in the wallet from last month (optional)', m.carryOver)}
+          ${carryField(carry)}
         </div>
       </section>
 
@@ -77,9 +77,10 @@ export function render(main, ctx) {
   bindMoney(main, '#wallet-budget', m.walletBudget, (cents) => {
     state.put({ id: `month:${month}`, type: 'month', month, walletBudget: cents });
   });
-  bindMoney(main, '#carry-over', m.carryOver, (cents) => {
+  // Empty field = automatic carry-over from last month's final check-in.
+  bindMoney(main, '#carry-over', carry.overridden ? carry.amount : null, (cents) => {
     state.put({ id: `month:${month}`, type: 'month', month, carryOver: cents });
-  });
+  }, null);
   for (const p of ['t', 'k']) {
     bindMoney(main, `#income-${p}`, incomes[p], (cents) => state.setIncome(month, p, cents));
   }
@@ -100,16 +101,22 @@ function moneyField(id, label, cents) {
   </div>`;
 }
 
-function bindMoney(main, selector, oldCents, save) {
+/**
+ * Save a money field when you leave it. With emptyMeans = null, an empty
+ * field saves null (used for "automatic" carry-over); otherwise it saves 0.
+ */
+function bindMoney(main, selector, oldCents, save, emptyMeans = 0) {
   const input = main.querySelector(selector);
   input.addEventListener('change', () => {
-    const cents = input.value.trim() === '' ? 0 : parseCents(input.value);
-    if (cents === null || cents < 0) {
+    const empty = input.value.trim() === '';
+    const cents = empty ? emptyMeans : parseCents(input.value);
+    if (!empty && (cents === null || cents < 0)) {
       input.value = oldCents ? centsToInput(oldCents) : '';
       toast('Please enter a number, e.g. 2450,50');
       return;
     }
-    if (cents !== (oldCents || 0)) {
+    const before = oldCents === undefined ? emptyMeans : oldCents;
+    if (cents !== before && !(emptyMeans === 0 && !cents && !before)) {
       save(cents);
       toast('Saved');
     }
@@ -117,6 +124,21 @@ function bindMoney(main, selector, oldCents, save) {
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') input.blur();
   });
+}
+
+function carryField(carry) {
+  const autoText = carry.auto
+    ? `Automatic: ${formatCents(carry.auto.balance)} from the last check-in of ${monthLabel(carry.prevKey)} (${carry.auto.date.slice(8)}.${carry.auto.date.slice(5, 7)}.).`
+    : `Automatic: nothing, no check-in in ${monthLabel(carry.prevKey)}.`;
+  return `<div class="inline-field">
+    <label for="carry-over">Carried over from last month</label>
+    <input id="carry-over" class="money" inputmode="decimal" autocomplete="off"
+      placeholder="${esc(carry.auto ? centsToInput(carry.auto.balance) : '0,00')}"
+      value="${esc(carry.overridden ? centsToInput(carry.amount) : '')}">
+  </div>
+  <p class="muted small" style="margin:-6px 0 0" data-testid="carry-hint">${esc(autoText)}
+    ${carry.overridden ? 'You typed your own amount; empty the field to go back to automatic.' : 'Type an amount only to override it.'}
+    It adds to the balance, not to the budget.</p>`;
 }
 
 function resultCard(s, plan) {

@@ -10,8 +10,9 @@ export const SHORTCUTS = [
   { keys: ['4'], label: 'Settings', action: 'view:settings' },
   { keys: ['←', '→'], label: 'Previous / next month', action: null },
   { keys: ['T'], label: 'Jump to this month', action: 'today' },
-  { keys: ['C'], label: 'Weekly check-in', action: 'checkin' },
-  { keys: ['N'], label: 'Add purchase (on Big costs: add big cost)', action: 'new' },
+  { keys: ['C'], label: 'Check in the Revolut balance', action: 'checkin' },
+  { keys: ['A'], label: 'Add money to the wallet', action: 'topup' },
+  { keys: ['N'], label: 'Add big cost (on Big costs)', action: 'new' },
   { keys: ['F'], label: 'Add fixed cost', action: 'fixed' },
   { keys: ['Ctrl', 'Z'], label: 'Undo', action: null },
   { keys: ['Ctrl', 'Y'], label: 'Redo (also Ctrl+Shift+Z)', action: null },
@@ -25,7 +26,7 @@ export const SHORTCUTS = [
 const PLAIN = {
   '1': 'view:wallet', '2': 'view:month', '3': 'view:big', '4': 'view:settings',
   ArrowLeft: 'prevMonth', ArrowRight: 'nextMonth',
-  t: 'today', c: 'checkin', n: 'new', f: 'fixed', '?': 'help',
+  t: 'today', c: 'checkin', a: 'topup', n: 'new', f: 'fixed', '?': 'help',
 };
 
 function isTyping(target) {

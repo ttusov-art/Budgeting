@@ -108,34 +108,36 @@ export function walletStartBalance({ plan, carryOver, fixed }) {
   return plan.walletIn + (carryOver || 0) - paidFromWallet;
 }
 
+const byTime = (a, b) => (a.date + (a.createdAt || '')).localeCompare(b.date + (b.createdAt || ''));
+
 /**
- * Spent at one check-in. A check-in records the balance left in the
- * wallet; spent = start balance − balance. (Older check-ins that stored
- * "spent so far" directly are still understood.)
+ * Spent at one check-in. A check-in records the actual balance of the
+ * shared account. Personal money added before it ("top-ups") raised the
+ * balance without being part of the budget, so:
+ *   spent = start balance + top-ups so far − balance
+ * (Older check-ins that stored "spent so far" directly are still understood.)
  */
-export function checkinSpent(checkin, startBalance) {
-  if (checkin.balance !== undefined && checkin.balance !== null) return startBalance - checkin.balance;
-  return checkin.spent || 0;
+export function checkinSpent(checkin, startBalance, topups = []) {
+  if (checkin.balance === undefined || checkin.balance === null) return checkin.spent || 0;
+  const added = sum(topups.filter((t) => byTime(t, checkin) <= 0).map((t) => t.amount));
+  return startBalance + added - checkin.balance;
 }
 
-/**
- * Spent so far in the wallet for one month.
- * The latest check-in gives the spending up to its date; purchases logged
- * after it are added on top (purchases before it are already in the balance).
- */
-export function spentSoFar(checkins, purchases, startBalance = 0) {
-  const byTime = (a, b) => (a.date + (a.createdAt || '')).localeCompare(b.date + (b.createdAt || ''));
-  const sortedCheckins = [...checkins].sort(byTime);
-  const last = sortedCheckins[sortedCheckins.length - 1];
-
-  if (!last) return { spent: sum(purchases.map((p) => p.amount)), lastCheckin: null, purchasesSince: purchases.length };
-
-  const after = purchases.filter((p) => byTime(p, last) > 0);
+/** Spent so far this month = spent at the latest check-in. */
+export function spentSoFar(checkins, startBalance = 0, topups = []) {
+  const sorted = [...checkins].sort(byTime);
+  const last = sorted[sorted.length - 1] || null;
   return {
-    spent: checkinSpent(last, startBalance) + sum(after.map((p) => p.amount)),
+    spent: last ? checkinSpent(last, startBalance, topups) : 0,
     lastCheckin: last,
-    purchasesSince: after.length,
   };
+}
+
+/** Balance of the latest check-in of a month, or null (used for carry-over). */
+export function lastBalance(checkins) {
+  const withBalance = checkins.filter((c) => c.balance !== undefined && c.balance !== null).sort(byTime);
+  const last = withBalance[withBalance.length - 1];
+  return last ? { balance: last.balance, date: last.date } : null;
 }
 
 /**

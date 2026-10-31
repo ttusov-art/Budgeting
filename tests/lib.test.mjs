@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 
 import { parseCents, formatCents, centsToInput } from '../js/lib/money.js';
 import { addMonths, monthsBetween, daysInMonth, daysElapsed } from '../js/lib/months.js';
-import { spreadSharesForMonth, monthPlan, spentSoFar, walletPace, walletStartBalance } from '../js/lib/budget.js';
+import { spreadSharesForMonth, monthPlan, spentSoFar, walletPace, walletStartBalance, lastBalance } from '../js/lib/budget.js';
 import { mergeRecords } from '../js/lib/merge.js';
 
 test('parseCents understands German and English number styles', () => {
@@ -86,29 +86,32 @@ test('odd cents: private halves add up exactly', () => {
   assert.equal(plan.hasIncomes, false);
 });
 
-test('spent so far: latest check-in plus purchases after it', () => {
-  const checkins = [
-    { date: '2026-10-07', createdAt: 'a', spent: 20000 },
-    { date: '2026-10-14', createdAt: 'b', spent: 41000 },
-  ];
-  const purchases = [
-    { date: '2026-10-10', createdAt: 'x', amount: 999 },  // before check-in → already included
-    { date: '2026-10-15', createdAt: 'y', amount: 2550 },
-  ];
-  const r = spentSoFar(checkins, purchases);
-  assert.equal(r.spent, 43550);
-  assert.equal(r.purchasesSince, 1);
-  assert.equal(spentSoFar([], purchases).spent, 3549);
-});
-
-test('balance check-ins: spent = start − balance, a second check-in does not stack', () => {
+test('balance check-ins: spent = start − balance; a second check-in replaces the first', () => {
   const checkins = [
     { date: '2026-10-07', createdAt: 'a', balance: 70000 },
     { date: '2026-10-14', createdAt: 'b', balance: 52000 },
   ];
-  const purchases = [{ date: '2026-10-16', createdAt: 'c', amount: 1500 }];
-  const r = spentSoFar(checkins, purchases, 93000);
-  assert.equal(r.spent, 41000 + 1500);
+  assert.equal(spentSoFar(checkins, 93000).spent, 41000);
+  assert.equal(spentSoFar([], 93000).spent, 0);
+});
+
+test('top-ups raise the balance without counting as negative spending', () => {
+  const checkins = [{ date: '2026-10-20', createdAt: 'b', balance: 30000 }];
+  const topups = [
+    { date: '2026-10-15', createdAt: 'x', amount: 10000 }, // before the check-in → counted
+    { date: '2026-10-25', createdAt: 'y', amount: 5000 },  // after → only for later check-ins
+  ];
+  // start 93000 + 10000 added − 30000 balance = 73000 spent
+  assert.equal(spentSoFar(checkins, 93000, topups).spent, 73000);
+});
+
+test('carry-over source: balance of the last check-in', () => {
+  assert.deepEqual(lastBalance([
+    { date: '2026-09-30', createdAt: 'b', balance: 4200 },
+    { date: '2026-09-23', createdAt: 'a', balance: 20000 },
+    { date: '2026-09-10', createdAt: 'c', spent: 100 },
+  ]), { balance: 4200, date: '2026-09-30' });
+  assert.equal(lastBalance([]), null);
 });
 
 test('wallet start: deposits + carry-over − paid wallet costs', () => {

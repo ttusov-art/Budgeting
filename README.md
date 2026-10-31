@@ -1,9 +1,9 @@
 # Household Budget
 
 A shared household budget for two people, replacing the monthly Google Sheet.
-Once a month: set the wallet budget and fixed costs, and the app tells each person how much to
-deposit into the shared wallet. During the month: check in weekly with "spent so far" (or log single
-purchases) and see whether you are ahead of or behind plan.
+Once a month: enter salaries, the wallet budget and fixed costs, and the app tells each person their
+private money and how much to deposit into the shared wallet (Revolut). During the month: check in
+with the Revolut balance and see whether you are ahead of or behind plan.
 
 Setup: see **SETUP.md**.
 
@@ -18,9 +18,13 @@ Every month you enter both salaries, agree on the wallet size, and list the fixe
   Together the two deposits always equal the wallet budget (plus any costs paid from the wallet).
   A negative deposit means that person gets that amount back.
 - **Pace** = spent so far ÷ (wallet budget × days elapsed ÷ days in month). Below 100 % = under plan.
-- **Check-in** = the balance left in the wallet. Spent = start balance − balance, where the start balance is
-  the deposits + anything left over from last month − fixed costs paid from the wallet (ticked as paid).
-- **Spent so far** = spent at the latest check-in + purchases logged after it.
+- **Check-in** = the actual Revolut balance. Spent = start balance + money added − balance.
+- **Start balance** = deposits + carry-over − fixed costs paid from the wallet (ticked as paid).
+- **Carry-over** = automatically the previous month's last check-in balance; can be typed over on the
+  Month screen (empty = automatic). Check in on the last day of a month for an exact carry-over.
+- **Add money** = personal money put into the wallet (e.g. when the pace is too high). Raises the balance,
+  never counts as negative spending.
+- **Budget vs. actual** always compares spending with the agreed wallet budget only.
 - **Big costs**: a one-off purchase is spread evenly over N months; a recurring bill (yearly,
   half-yearly, quarterly) sets aside amount ÷ period every month. The share counts as paid by
   whoever pays the bill.
@@ -29,7 +33,7 @@ Every month you enter both salaries, agree on the wallet size, and list the fixe
 
 | Screen | What it does |
 | --- | --- |
-| Wallet | Left in the wallet, pace vs. plan, daily/weekly figures, check-ins and purchases |
+| Wallet | Budget left, pace vs. plan, daily/weekly figures, check-ins and added money; app version |
 | Month | Private money and deposits, salaries, wallet budget, fixed costs (tick when paid), summary; "copy last month" |
 | Big costs | Spread purchases and recurring bills |
 | Settings | Names, whose phone, sync, backup, shortcuts, privacy |
@@ -41,8 +45,9 @@ Every month you enter both salaries, agree on the wallet size, and list the fixe
 | `1` `2` `3` `4` | Wallet / Month / Big costs / Settings |
 | `←` `→` | Previous / next month |
 | `T` | Jump to this month |
-| `C` | Weekly check-in |
-| `N` | Add purchase (on Big costs: add big cost) |
+| `C` | Check in the Revolut balance |
+| `A` | Add money to the wallet |
+| `N` | Add big cost (on Big costs) |
 | `F` | Add fixed cost |
 | `Ctrl+Z` / `Ctrl+Y` (or `Ctrl+Shift+Z`) | Undo / redo |
 | `Ctrl+S` | Sync now |
@@ -74,7 +79,7 @@ tests/                 unit tests + Playwright end-to-end tests (made-up data)
 ### Data model
 
 Everything is a flat list of **records**, each with `id`, `type`, `updatedAt`, `deleted`, `by`:
-`settings`, `month` (wallet budget), `income` (one per person per month, so both phones can enter theirs at once), `fixed`, `spread`, `checkin`, `purchase`. Amounts are whole
+`settings`, `month` (wallet budget), `income` (one per person per month, so both phones can enter theirs at once), `fixed`, `spread`, `checkin` (balance), `topup` (money added). Amounts are whole
 cents. Deleting marks a record `deleted` so the deletion can reach the other phone. When both phones
 changed the same record, the newer change wins.
 

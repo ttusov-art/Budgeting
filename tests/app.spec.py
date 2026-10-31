@@ -150,15 +150,25 @@ def run(p):
     page.locator('#form-dialog [name="balance"]').fill("50")
     page.locator('#form-dialog [name="balance"]').press("Enter")
     check("second check-in: balance 50 € → 880 € spent, remaining 50 €", "50,00" in page.get_by_test_id("remaining").inner_text() and "880,00" in page.locator("main").inner_text())
-    page.locator(".row-btn", has_text="50,00 € in the wallet").click()
+    page.locator(".row-btn", has_text="Balance 50,00 €").click()
     page.locator("#form-dialog").get_by_role("button", name="Delete").click()
     check("deleting it brings back the first check-in", "59,61" in page.get_by_test_id("remaining").inner_text())
+    check("version is shown on the wallet page", "2026-" in page.get_by_test_id("version").inner_text())
+    check("no Add purchase button any more", page.get_by_role("button", name=re.compile("Add purchase")).count() == 0)
 
-    page.get_by_role("button", name=re.compile("Add purchase")).click()
-    page.locator('#form-dialog [name="amount"]').fill("12,50")
-    page.locator('#form-dialog [name="note"]').fill("Market")
-    page.locator('#form-dialog [name="amount"]').press("Enter")  # Enter submits
-    check("purchase after check-in counts on top", "47,11" in page.get_by_test_id("remaining").inner_text())
+    # Kristiina tops up 100 € of personal money; the balance rises, spending doesn't go down
+    page.get_by_role("button", name=re.compile("Add money")).click()
+    dlg = page.locator("#form-dialog")
+    dlg.locator('[name="amount"]').fill("100")
+    dlg.get_by_text("Kristiina", exact=True).click()
+    dlg.get_by_role("button", name="Save").click()
+    page.get_by_role("button", name=re.compile("Check in")).click()
+    page.locator('#form-dialog [name="balance"]').fill("120")
+    page.locator('#form-dialog [name="balance"]').press("Enter")
+    # spent = 930 start + 100 top-up − 120 balance = 910 → 20 left of the agreed 930
+    check("top-up is not counted as spending (910 spent, 20 budget left)",
+          "910,00" in page.get_by_test_id("spent").inner_text() and "20,00" in page.get_by_test_id("remaining").inner_text())
+    check("balance line shows the top-up", "100,00 € topped up" in page.get_by_test_id("balance-line").inner_text().replace("\xa0", " "))
     page.screenshot(path=str(SHOTS / "phone-412-wallet.png"), full_page=True)
 
     for w in (340, 360):
@@ -193,6 +203,26 @@ def run(p):
     page.get_by_role("link", name=re.compile("Month")).click()
     # Costs 2105.98 → leftover 3394.02 → 1697.01 each; Tõnis 3000 − 175.98 − 1697.01 = 1127.01
     check("big cost share lowers private money and counts as Tõnis's payment", "1.127,01" in page.get_by_test_id("deposit-t").inner_text() and "1.697,01" in page.get_by_test_id("private").inner_text())
+    # Carry-over: October's last check-in (120 €) carries into November automatically
+    check("carry-over taken from October's last check-in", "120,00" in page.get_by_test_id("carry-hint").inner_text())
+    check("November wallet starts with 930 + 120 = 1.050 €", "1.050,00" in page.get_by_test_id("wallet-start").inner_text())
+    page.get_by_role("link", name=re.compile("Wallet")).click()
+    page.get_by_role("button", name=re.compile("Check in")).click()
+    page.locator('#form-dialog [name="balance"]').fill("1000")
+    page.locator('#form-dialog [name="balance"]').press("Enter")
+    check("budget vs actual uses only the agreed 930 € (50 spent → 880 left)",
+          "880,00" in page.get_by_test_id("remaining").inner_text() and "of the agreed 930,00" in page.locator("main").inner_text())
+    check("balance line mentions the carry-over", "120,00 € carried over" in page.get_by_test_id("balance-line").inner_text().replace("\xa0", " "))
+    # Override the carry-over by hand, then back to automatic
+    page.get_by_role("link", name=re.compile("Month")).click()
+    page.fill("#carry-over", "150")
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(100)
+    check("typed carry-over overrides the automatic one", "1.080,00" in page.get_by_test_id("wallet-start").inner_text())
+    page.fill("#carry-over", "")
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(100)
+    check("emptying the field goes back to automatic", "1.050,00" in page.get_by_test_id("wallet-start").inner_text())
     ctx.close()
 
     # ===== 2. Laptop with keyboard =====
@@ -205,18 +235,19 @@ def run(p):
     page.fill("#wallet-budget", "600")
     page.locator("body").click(position={"x": 5, "y": 400})
     page.keyboard.press("1")
-    page.keyboard.press("n")
-    check("N opens Add purchase", page.locator("#form-dialog[open] h2").inner_text() == "Add purchase")
-    page.keyboard.type("20")
+    page.keyboard.press("c")
+    check("C opens the check-in", page.locator("#form-dialog[open] h2").inner_text() == "Check in balance")
+    page.keyboard.type("550")
     page.keyboard.press("Enter")
-    check("purchase saved with keyboard", "580,00" in page.get_by_test_id("remaining").inner_text())
+    check("check-in saved with keyboard (50 spent)", "550,00" in page.get_by_test_id("remaining").inner_text())
     page.keyboard.press("Control+z")
     page.wait_for_timeout(50)
-    check("Ctrl+Z undoes the purchase", "600,00" in page.get_by_test_id("remaining").inner_text())
+    check("Ctrl+Z undoes the check-in", "600,00" in page.get_by_test_id("remaining").inner_text())
     page.keyboard.press("Control+y")
     page.wait_for_timeout(50)
-    check("Ctrl+Y redoes it", "580,00" in page.get_by_test_id("remaining").inner_text())
-    page.keyboard.press("c")
+    check("Ctrl+Y redoes it", "550,00" in page.get_by_test_id("remaining").inner_text())
+    page.keyboard.press("a")
+    check("A opens Add money", page.locator("#form-dialog[open] h2").inner_text() == "Add money to the wallet")
     page.keyboard.press("Escape")
     check("Esc closes the dialog", page.locator("#form-dialog[open]").count() == 0)
     expect(page.locator("#form-dialog")).not_to_have_attribute("open", "")
@@ -279,24 +310,24 @@ def run(p):
           kris.input_value("#income-t") == "3100,00" and tonis.input_value("#income-t") == "3100,00")
     kris.goto(BASE + "#wallet")
 
-    kris.get_by_role("button", name=re.compile("Add purchase")).click()
+    kris.get_by_role("button", name=re.compile("Add money")).click()
     kris.locator('#form-dialog [name="amount"]').fill("45")
-    kris.locator('#form-dialog [name="note"]').fill("Groceries")
+    kris.locator('#form-dialog [name="note"]').fill("Market week")
     kris.locator("#form-dialog").get_by_role("button", name="Save").click()
     kris.wait_for_timeout(2500)  # auto-sync after 2 s
     tonis.goto(BASE + "#wallet")
     tonis.keyboard.press("Control+s")
-    expect(tonis.get_by_test_id("remaining")).to_contain_text("755,00", timeout=5000)
-    check("Tõnis's phone receives Kristiina's purchase (auto-sync)", True)
-    check("entry shows who added it (KM)", "KM" in tonis.locator(".list").inner_text())
+    expect(tonis.get_by_test_id("balance-line")).to_contain_text(re.compile(r"45,00\s€ topped up"), timeout=5000)
+    check("Tõnis's phone receives Kristiina's top-up (auto-sync)", True)
+    check("entry shows who added it (Kristiina, entered by KM)", "Kristiina added money" in tonis.locator(".list").inner_text() and "KM" in tonis.locator(".list").inner_text())
 
     # Delete on one phone travels to the other
-    tonis.get_by_text("Groceries").click()
+    tonis.get_by_text("Market week").click()
     tonis.locator("#form-dialog").get_by_role("button", name="Delete").click()
     tonis.keyboard.press("Control+s")
     tonis.wait_for_timeout(300)
     kris.keyboard.press("Control+s")
-    expect(kris.get_by_test_id("remaining")).to_contain_text("800,00", timeout=5000)
+    expect(kris.get_by_test_id("balance-line")).not_to_contain_text("topped up", timeout=5000)
     check("deletion syncs to the other phone", True)
 
     # Offline edits wait and go out later

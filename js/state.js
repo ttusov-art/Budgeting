@@ -7,7 +7,7 @@
 import * as storage from './storage.js';
 import { mergeRecords } from './lib/merge.js';
 import { addMonths } from './lib/months.js';
-import { monthPlan, spreadSharesForMonth, walletStartBalance } from './lib/budget.js';
+import { monthPlan, spreadSharesForMonth, walletStartBalance, lastBalance } from './lib/budget.js';
 
 let records = storage.loadRecords();
 let dirty = storage.loadDirty();
@@ -198,19 +198,37 @@ export function setIncome(key, person, cents) {
   put({ id: `income:${key}:${person}`, type: 'income', month: key, person, amount: cents });
 }
 
-/** Everything calculated for one month: the plan and the wallet's start balance. */
+/**
+ * Carry-over into a month: typed on the Month screen (override), or
+ * automatically the balance of the previous month's last check-in.
+ */
+export function carryOverFor(key) {
+  const m = getMonth(key);
+  const prevKey = addMonths(key, -1);
+  const auto = lastBalance(checkinsFor(prevKey));
+  const overridden = Boolean(m) && m.carryOver !== undefined && m.carryOver !== null;
+  return {
+    amount: overridden ? m.carryOver : (auto ? auto.balance : 0),
+    overridden,
+    auto, // { balance, date } or null
+    prevKey,
+  };
+}
+
+/** Everything calculated for one month: the plan, carry-over and the wallet's start balance. */
 export function planFor(key) {
   const m = getMonth(key) || { walletBudget: 0 };
   const fixed = fixedFor(key);
   const spreadShares = spreadSharesForMonth(getSpreads(), key);
   const plan = monthPlan({ fixed, spreadShares, walletBudget: m.walletBudget || 0, incomes: getIncomes(key) });
-  const startBalance = walletStartBalance({ plan, carryOver: m.carryOver || 0, fixed });
-  return { m, fixed, spreadShares, plan, startBalance };
+  const carry = carryOverFor(key);
+  const startBalance = walletStartBalance({ plan, carryOver: carry.amount, fixed });
+  return { m, fixed, spreadShares, plan, carry, startBalance };
 }
 
 export const fixedFor = (key) => live('fixed').filter((r) => r.month === key).sort(byOrder);
 export const checkinsFor = (key) => live('checkin').filter((r) => r.month === key).sort(byDate);
-export const purchasesFor = (key) => live('purchase').filter((r) => r.month === key).sort(byDate);
+export const topupsFor = (key) => live('topup').filter((r) => r.month === key).sort(byDate);
 export const getSpreads = () => live('spread').sort((a, b) => (a.start || '').localeCompare(b.start || ''));
 
 /** Does this month have any setup yet (budget or fixed costs)? */
