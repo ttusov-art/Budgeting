@@ -7,7 +7,7 @@ import { parseCents, formatCents, centsToInput } from '../js/lib/money.js';
 import { addMonths, monthsBetween, daysInMonth, daysElapsed } from '../js/lib/months.js';
 import { spreadSharesForMonth, monthPlan, spentSoFar, walletPace, walletStartBalance, lastBalance } from '../js/lib/budget.js';
 import { mergeRecords } from '../js/lib/merge.js';
-import { parseCsv, parseRevolut, merchantKey, parseDateTime, parseAmount } from '../js/lib/revolut.js';
+import { parseCsv, parseRevolut, merchantKey, parseDateTime, parseAmount, repairEncoding } from '../js/lib/revolut.js';
 import { readFileSync } from 'node:fs';
 import { walletSpent } from '../js/lib/budget.js';
 
@@ -280,4 +280,41 @@ test('withdrawing in November for October purchases does not count as November s
   // November starts with the carried 200 €; balance after withdrawal and 100 € spending: 93000 + 20000 − 5000 − 10000
   const nov = walletSpent({ checkins: [ck('2026-11-05', '2026-11-05T10:00:00Z', 98000)], startBalance: 113000, expenses, settlements, monthKey: '2026-11' });
   assert.equal(nov.spent, 10000);
+});
+
+// ---------- garbled characters (as in a real Revolut custom statement) ----------
+
+const REAL_LAYOUT = 'Transaction statement\nDate,Description,Category,Money in/out,Balance,Tax withheld,Other taxes,Fees,,,,,\n'
+  + '"Oct 1, 2026",REWE.de,Merchant,-€33.94,"€3,841.75",€0.00,€0.00,€0.00,,,,,\n'
+  + '"Oct 1, 2026",Bäckerei Zenvital,Merchant,-€4.00,"€3,837.75",€0.00,€0.00,€0.00,,,,,\n';
+
+test('the real Revolut row layout imports (correct encoding)', () => {
+  const r = parseRevolut(REAL_LAYOUT);
+  assert.deepEqual(r.transactions.map((t) => [t.description, t.amount, t.date]),
+    [['REWE.de', 3394, '2026-10-01'], ['Bäckerei Zenvital', 400, '2026-10-01']]);
+});
+
+test('garbled euro signs and umlauts are repaired (Latin-1 and Windows-1252 variants)', () => {
+  const bytes = Buffer.from(REAL_LAYOUT, 'utf8');
+  const latin1 = bytes.toString('latin1');                               // "-â\u0082¬33.94"
+  const cp1252 = new TextDecoder('windows-1252').decode(bytes);          // "-â‚¬33.94"
+  for (const garbled of [latin1, cp1252]) {
+    assert.notEqual(garbled, REAL_LAYOUT);
+    const r = parseRevolut(garbled);
+    assert.deepEqual(r.transactions.map((t) => [t.description, t.amount]), [['REWE.de', 3394], ['Bäckerei Zenvital', 400]]);
+  }
+  assert.equal(repairEncoding('Lidl Berlin, -12.00'), 'Lidl Berlin, -12.00'); // fine text untouched
+  assert.equal(repairEncoding('Café ŽŠ'), 'Café ŽŠ');                       // real accents untouched
+});
+
+test('a file mixing garbled and correct lines is repaired line by line', () => {
+  const garbledLine = Buffer.from('"Oct 2, 2026",Café,Merchant,-€2.50,"€10.00",€0.00,€0.00,€0.00', 'utf8').toString('latin1');
+  const text = 'Date,Description,Category,Money in/out,Balance,Tax withheld,Other taxes,Fees\n'
+    + garbledLine + '\n"Oct 3, 2026",Žabka,Merchant,-€1.00,"€9.00",€0.00,€0.00,€0.00';
+  assert.deepEqual(parseRevolut(text).transactions.map((t) => t.description), ['Café', 'Žabka']);
+});
+
+test('amounts with stray symbols still read', () => {
+  assert.equal(parseAmount('-â¬33.94'), -3394);
+  assert.equal(parseAmount('â¬3,841.75'), 384175);
 });

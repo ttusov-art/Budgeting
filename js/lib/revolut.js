@@ -24,9 +24,40 @@ const COLUMNS = {
   balance: ['balance', 'saldo', 'kontostand'],
 };
 
+// Windows-1252 characters above 0xFF and the byte each one stands for.
+const CP1252 = {
+  '€': 0x80, '‚': 0x82, 'ƒ': 0x83, '„': 0x84, '…': 0x85, '†': 0x86, '‡': 0x87, 'ˆ': 0x88, '‰': 0x89,
+  'Š': 0x8a, '‹': 0x8b, 'Œ': 0x8c, 'Ž': 0x8e, '‘': 0x91, '’': 0x92, '“': 0x93, '”': 0x94, '•': 0x95,
+  '–': 0x96, '—': 0x97, '˜': 0x98, '™': 0x99, 'š': 0x9a, '›': 0x9b, 'œ': 0x9c, 'ž': 0x9e, 'Ÿ': 0x9f,
+};
+
+/**
+ * Repair "mojibake": UTF-8 text that was once read as Windows-1252/Latin-1,
+ * e.g. "-â‚¬33.94" → "-€33.94", "BÃ¤ckerei" → "Bäckerei".
+ * Revolut's statement files can arrive like this. Text that is fine is returned unchanged.
+ */
+export function repairEncoding(text) {
+  if (!/[ÂÃâ][\u0080-\u00bf\u0152-\u2122]/.test(text)) return text;
+  const bytes = new Uint8Array(text.length);
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const code = ch.charCodeAt(0);
+    if (code <= 0xff) bytes[i] = code;
+    else if (CP1252[ch] !== undefined) bytes[i] = CP1252[ch];
+    else return text; // a real character outside Latin-1: not mojibake, leave it
+  }
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return text;
+  }
+}
+
 /** Split CSV text into rows of fields. Handles quotes and "" inside quotes. */
 export function parseCsv(text) {
-  const clean = text.replace(/^﻿/, ''); // Excel/BOM marker
+  // Remove the BOM marker and repair garbled characters line by line,
+  // so one unusual line can't stop the rest from being repaired.
+  const clean = text.replace(/^\uFEFF/, '').split('\n').map(repairEncoding).join('\n');
   // Comma is Revolut's default; some exports (or Excel re-saves) use semicolons or tabs.
   // Look at a larger sample, because the first lines can be a title without separators.
   const sample = clean.slice(0, 20000);
@@ -111,7 +142,8 @@ export function parseAmount(text) {
   t = t.replace(/€|£|\$|\bkr\b/gi, '');
   for (const c of CURRENCY_CODES) t = t.replace(new RegExp(c, 'gi'), '');
   t = t.replace(/^\s*\((.*)\)\s*$/, '-$1'); // (23.45) = minus
-  t = t.replace(/\s|\+/g, '');
+  // Drop anything else that isn't part of the number (stray symbols, spaces, "+").
+  t = t.replace(/[^0-9.,-]/g, '');
   if (/^-?$/.test(t)) return null;
   return parseCents(t);
 }
@@ -171,6 +203,7 @@ export function parseRevolut(text, { currency: wanted = 'EUR' } = {}) {
   const rows = parseCsv(text);
   const transactions = [];
   const otherCurrency = {};
+  const reasons = { incoming: 0, unreadable: 0, unfinished: 0, exchange: 0 };
   const seen = {}; // identical purchases in one file (same day, shop, amount, balance) get a counter
   let skipped = 0;
   let sections = 0;
@@ -215,6 +248,10 @@ export function parseRevolut(text, { currency: wanted = 'EUR' } = {}) {
       const exchange = ['EXCHANGE', 'UMTAUSCH', 'WECHSEL'].includes(type) || /^exchanged to\b/i.test(description);
       if (!outgoing || !finished || !mainAccount || exchange) {
         skipped++;
+        if (amount === null) reasons.unreadable++;
+        else if (!outgoing) reasons.incoming++;
+        else if (exchange) reasons.exchange++;
+        else reasons.unfinished++;
         continue;
       }
       if (currency !== wanted) {
@@ -245,5 +282,5 @@ export function parseRevolut(text, { currency: wanted = 'EUR' } = {}) {
       error: `No transaction list found in this file. It should contain a header like "Date, Description, …, Money in/out". The file starts with: ${preview.slice(0, 160)}`,
     };
   }
-  return { transactions, skipped, otherCurrency, error: null };
+  return { transactions, skipped, otherCurrency, reasons, error: null };
 }

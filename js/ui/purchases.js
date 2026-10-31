@@ -131,6 +131,11 @@ async function importFile(input) {
   if (r.known) parts.push(`${r.known} already imported`);
   const other = Object.entries(r.otherCurrency || {}).map(([cur, n]) => `${n} in ${cur}`);
   if (other.length) parts.push(`${other.join(', ')} left out (budget is in EUR)`);
+  const why = r.reasons || {};
+  if (why.unreadable) parts.push(`${why.unreadable} with an amount the app couldn't read`);
+  if (r.added === 0 && !r.known && !other.length && !why.unreadable) {
+    parts.push(`no outgoing payments found (${why.incoming || 0} incoming, ${why.exchange || 0} exchanges)`);
+  }
   toast(parts.join(' · '));
 }
 

@@ -481,6 +481,14 @@ def run(p):
     check("pop-up message has square-ish corners and the app's colours",
           tonis.evaluate("(() => { const t = getComputedStyle(document.getElementById('toast')); return t.borderRadius === '10px' && t.backgroundColor !== 'rgb(255, 255, 255)'; })()"))
 
+    # A real-layout file whose euro signs arrived garbled ("-â¬33.94")
+    tonis.set_input_files("#csv-file", str(FIX / "revolut-custom-garbled.csv"))
+    expect(tonis.locator("#toast")).to_contain_text("3 new purchases", timeout=3000)
+    check("garbled Revolut file: 3 purchases recognised (incoming payment skipped)", True)
+    check("garbled umlauts are repaired in shop names", tonis.locator(".sort-row", has_text="Bäckerei Musterbrot").count() == 1)
+    for name in ["REWE.de", "Zenvital", "Bäckerei Musterbrot"]:
+        tonis.get_by_role("button", name=f"{name}: personal").click()
+
     # Wallet counts unwithdrawn common purchases as spent already: 800 − 700 balance = 100, + 49,40
     tonis.locator('.tabs [data-view="wallet"]').click()
     check("wallet: common purchases count as spent before withdrawal", "149,40" in tonis.get_by_test_id("spent").inner_text())

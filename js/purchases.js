@@ -66,7 +66,7 @@ export function importCsv(text) {
   }
   prune();
   save();
-  return { added, known, skipped: result.skipped, otherCurrency: result.otherCurrency || {}, error: null };
+  return { added, known, skipped: result.skipped, reasons: result.reasons || {}, otherCurrency: result.otherCurrency || {}, error: null };
 }
 
 /** Mark one transaction as 'common' or 'personal' (or back to 'new'). */

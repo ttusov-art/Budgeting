@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-31 n
+- Fix: Revolut statements with garbled characters ("-â¬33.94" instead of "-€33.94") imported 0 purchases. Garbled text is now repaired (also umlauts in shop names), and amounts are read even with stray symbols.
+- When nothing is imported, the message says why (incoming only, exchanges, unreadable amounts).
+
 ## 2026-10-31 m
 - Pop-up messages: app colours (no white box), slightly rounded rectangle, long text wraps.
 - Revolut import reads the app's "Custom statement" CSV: finds the transaction list after the introduction, handles several account sections, month-name dates and amounts with currency signs.
