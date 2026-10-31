@@ -293,6 +293,15 @@ kbd {
 .deposit.is-done { border-color: var(--good); }
 .deposit.is-done .status { background: var(--good-soft); color: var(--good); }
 .deposit.is-done .v { color: var(--ink-soft); }
+.notice {
+  display: block; padding: 10px 14px; border-radius: var(--radius-sm);
+  background: var(--warn-soft); color: var(--warn); font-weight: 600; font-size: 0.9rem; text-decoration: none;
+}
+.lock-card.is-locked { border-color: var(--good); }
+.lock-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.row-btn.is-static { cursor: default; }
+.row-btn.is-static:hover { background: none; }
+input[readonly] { background: var(--surface-2); color: var(--ink-soft); border-style: dashed; }
 .private-line {
   display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
   margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); font-weight: 700;

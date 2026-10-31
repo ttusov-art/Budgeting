@@ -20,37 +20,41 @@ export function render(main, ctx) {
   const s = state.getSettings();
   const paidCount = fixed.filter((f) => f.paid).length;
 
+  const locked = Boolean(m.locked);
+
   main.innerHTML = `
     <div class="stack">
-      ${resultCard(s, plan, state.getTransfersDone(month))}
+      <section class="card">
+        <div class="card-head">
+          <h2>Fixed costs <span class="muted small">${paidCount}/${fixed.length} paid</span></h2>
+          ${locked ? '' : '<button class="btn small-btn" data-act="add-fixed" title="Add fixed cost (F)">+ Add <kbd>F</kbd></button>'}
+        </div>
+        ${fixed.length ? `<ul class="list">${fixed.map((f) => fixedRow(f, locked)).join('')}</ul>` : '<p class="empty">No fixed costs yet. Add rent, phone, electricity…</p>'}
+      </section>
 
       <section class="card">
         <h2>This month's money</h2>
         <div class="stack">
-          ${moneyField('income-t', `${s.names.t}'s salary`, incomes.t)}
-          ${moneyField('income-k', `${s.names.k}'s salary`, incomes.k)}
-          ${moneyField('wallet-budget', 'Wallet budget for everyday spending', m.walletBudget)}
-          ${carryField(carry)}
+          ${moneyField('income-t', `${s.names.t}'s salary`, incomes.t, locked)}
+          ${moneyField('income-k', `${s.names.k}'s salary`, incomes.k, locked)}
+          ${moneyField('wallet-budget', 'Wallet budget for everyday spending', m.walletBudget, locked)}
+          ${carryField(carry, locked)}
         </div>
-      </section>
-
-      <section class="card">
-        <div class="card-head">
-          <h2>Fixed costs <span class="muted small">${paidCount}/${fixed.length} paid</span></h2>
-          <button class="btn small-btn" data-act="add-fixed" title="Add fixed cost (F)">+ Add <kbd>F</kbd></button>
-        </div>
-        ${fixed.length ? `<ul class="list">${fixed.map(fixedRow).join('')}</ul>` : '<p class="empty">No fixed costs yet. Add rent, phone, electricity…</p>'}
       </section>
 
       ${shares.length ? `
       <section class="card">
-        <div class="card-head"><h2>Big costs this month</h2><a class="small" href="#big">Manage</a></div>
+        <div class="card-head"><h2>Big costs this month</h2>${locked ? '<span class="muted small">frozen with the lock</span>' : '<a class="small" href="#big">Manage</a>'}</div>
         <ul class="list">${shares.map((sh) => `
           <li class="row">${payerBadge(sh.payer)}
-            <span class="grow"><span class="title">${esc(sh.name)}</span><br><span class="sub">${esc(sh.note)}</span></span>
+            <span class="grow"><span class="title">${esc(sh.name)}</span><span class="sub">${esc(sh.note)}</span></span>
             <span class="amount">${formatCents(sh.amount)}</span></li>`).join('')}
         </ul>
       </section>` : ''}
+
+      ${lockCard(month, m, s)}
+
+      ${resultCard(s, plan, state.getTransfersDone(month))}
 
       <section class="card">
         <h2>Summary</h2>
@@ -73,6 +77,22 @@ export function render(main, ctx) {
       </section>
     </div>`;
 
+  main.querySelector('[data-act="lock"]')?.addEventListener('click', () => {
+    state.lockMonth(month);
+    toast(`${monthLabel(month)} is locked`, { label: 'Undo', run: state.undo });
+  });
+  main.querySelector('[data-act="unlock"]')?.addEventListener('click', () => {
+    if (confirm(`Unlock ${monthLabel(month)}? Amounts and the fixed-cost list become editable again.`)) {
+      state.unlockMonth(month);
+      toast('Unlocked for editing');
+    }
+  });
+
+  if (locked) {
+    bindTracking(main, month);
+    return;
+  }
+
   // Money fields save when you leave them (or press Enter).
   bindMoney(main, '#wallet-budget', m.walletBudget, (cents) => {
     state.put({ id: `month:${month}`, type: 'month', month, walletBudget: cents });
@@ -86,6 +106,14 @@ export function render(main, ctx) {
   }
 
   main.querySelector('[data-act="add-fixed"]').addEventListener('click', () => editFixed(ctx));
+  main.querySelectorAll('[data-edit]').forEach((btn) => {
+    btn.addEventListener('click', () => editFixed(ctx, state.allRecords()[btn.dataset.edit]));
+  });
+  bindTracking(main, month);
+}
+
+/** Things that stay possible after locking: ticking costs as paid, marking transfers. */
+function bindTracking(main, month) {
   // Tapping a deposit box toggles "to transfer" ↔ "transferred".
   main.querySelectorAll('[data-transfer]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -98,15 +126,31 @@ export function render(main, ctx) {
   main.querySelectorAll('[data-paid]').forEach((box) => {
     box.addEventListener('change', () => state.put({ id: box.dataset.paid, paid: box.checked }));
   });
-  main.querySelectorAll('[data-edit]').forEach((btn) => {
-    btn.addEventListener('click', () => editFixed(ctx, state.allRecords()[btn.dataset.edit]));
-  });
 }
 
-function moneyField(id, label, cents) {
+function lockCard(month, m, s) {
+  if (m.locked) {
+    const when = m.lockedAt ? new Date(m.lockedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+    const who = s.names[m.lockedBy] || '';
+    return `<section class="card lock-card is-locked" data-testid="lock-card">
+      <div class="lock-row">
+        <span><b>🔒 Budget locked</b><br><span class="muted small">${esc([when, who && 'by ' + who].filter(Boolean).join(' '))} · tracking uses these numbers</span></span>
+        <button class="btn small-btn" data-act="unlock">Unlock</button>
+      </div>
+    </section>`;
+  }
+  return `<section class="card lock-card" data-testid="lock-card">
+    <h2>Agree and lock</h2>
+    <p class="muted small" style="margin-top:0">Is the fixed-cost list complete, and is the wallet budget agreed?
+      Locking protects the numbers from accidental changes. Ticking costs as paid and marking transfers still work.</p>
+    <button class="btn primary" data-act="lock">🔒 Lock budget for ${esc(monthLabel(month))}</button>
+  </section>`;
+}
+
+function moneyField(id, label, cents, locked = false) {
   return `<div class="inline-field">
     <label for="${id}">${esc(label)}</label>
-    <input id="${id}" class="money" inputmode="decimal" autocomplete="off" placeholder="0,00" value="${esc(cents ? centsToInput(cents) : '')}">
+    <input id="${id}" class="money" inputmode="decimal" autocomplete="off" placeholder="0,00" value="${esc(cents ? centsToInput(cents) : '')}" ${locked ? 'readonly' : ''}>
   </div>`;
 }
 
@@ -135,7 +179,7 @@ function bindMoney(main, selector, oldCents, save, emptyMeans = 0) {
   });
 }
 
-function carryField(carry) {
+function carryField(carry, locked = false) {
   const autoText = carry.auto
     ? `Automatic: ${formatCents(carry.auto.balance)} from the last check-in of ${monthLabel(carry.prevKey)} (${carry.auto.date.slice(8)}.${carry.auto.date.slice(5, 7)}.).`
     : `Automatic: nothing, no check-in in ${monthLabel(carry.prevKey)}.`;
@@ -143,9 +187,9 @@ function carryField(carry) {
     <label for="carry-over">Carried over from last month</label>
     <input id="carry-over" class="money" inputmode="decimal" autocomplete="off"
       placeholder="${esc(carry.auto ? centsToInput(carry.auto.balance) : '0,00')}"
-      value="${esc(carry.overridden ? centsToInput(carry.amount) : '')}">
+      value="${esc(carry.overridden ? centsToInput(carry.amount) : '')}" ${locked ? 'readonly' : ''}>
   </div>
-  <p class="muted small" style="margin:-6px 0 0" data-testid="carry-hint">${esc(autoText)}
+  <p class="muted small" style="margin:6px 0 0" data-testid="carry-hint">${esc(autoText)}
     ${carry.overridden ? 'You typed your own amount; empty the field to go back to automatic.' : 'Type an amount only to override it.'}
     It adds to the balance, not to the budget.</p>`;
 }
@@ -189,14 +233,15 @@ function depositBox(p, s, plan, isDone) {
   </button>`;
 }
 
-function fixedRow(f) {
+function fixedRow(f, locked) {
+  const inner = `${payerBadge(f.payer)}
+      <span class="grow"><span class="title">${esc(f.name)}</span></span>
+      <span class="amount">${formatCents(f.amount)}</span>`;
   return `<li class="row ${f.paid ? 'is-paid' : ''}">
     <input type="checkbox" class="check" data-paid="${esc(f.id)}" ${f.paid ? 'checked' : ''} aria-label="${esc(f.name)} paid">
-    <button class="row-btn" data-edit="${esc(f.id)}" aria-label="Edit ${esc(f.name)}">
-      ${payerBadge(f.payer)}
-      <span class="grow"><span class="title">${esc(f.name)}</span></span>
-      <span class="amount">${formatCents(f.amount)}</span>
-    </button>
+    ${locked
+      ? `<span class="row-btn is-static">${inner}</span>`
+      : `<button class="row-btn" data-edit="${esc(f.id)}" aria-label="Edit ${esc(f.name)}">${inner}</button>`}
   </li>`;
 }
 
@@ -228,6 +273,10 @@ function renderStart(main, month) {
 
 export async function editFixed(ctx, existing = null) {
   const month = existing ? existing.month : ctx.month;
+  if (state.isLocked(month)) {
+    toast('This month is locked. Unlock it on the Month screen to edit.');
+    return;
+  }
   if (!existing && !state.getMonth(month)) {
     state.put({ id: `month:${month}`, type: 'month', month, walletBudget: 0 });
   }

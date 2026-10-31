@@ -25,6 +25,8 @@ Every month you enter both salaries, agree on the wallet size, and list the fixe
 - **Add money** = personal money put into the wallet (e.g. when the pace is too high). Raises the balance,
   never counts as negative spending.
 - **Budget vs. actual** always compares spending with the agreed wallet budget only.
+- **Lock**: at the start of a month, check the fixed costs and agree on the wallet budget, then lock. A locked month
+  can't be edited by accident and keeps its big-cost shares even if a big cost changes later. Unlock to fix mistakes.
 - **Big costs**: a one-off purchase is spread evenly over N months; a recurring bill (yearly,
   half-yearly, quarterly) sets aside amount ÷ period every month. The share counts as paid by
   whoever pays the bill.
@@ -34,7 +36,7 @@ Every month you enter both salaries, agree on the wallet size, and list the fixe
 | Screen | What it does |
 | --- | --- |
 | Wallet | Budget left, pace vs. plan, daily/weekly figures, check-ins and added money; app version |
-| Month | Transfers to the wallet (tap when done) and private money, salaries, wallet budget, fixed costs (tick when paid), summary; "copy last month" |
+| Month | Fixed costs (tick when paid), salaries, wallet budget, carry-over, big costs, **lock the budget**, transfers to the wallet (tap when done), private money, summary; "copy last month" |
 | Big costs | Spread purchases and recurring bills |
 | Settings | Names, whose phone, sync, backup, shortcuts, privacy |
 

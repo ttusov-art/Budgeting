@@ -236,11 +236,28 @@ export function carryOverFor(key) {
 export function planFor(key) {
   const m = getMonth(key) || { walletBudget: 0 };
   const fixed = fixedFor(key);
-  const spreadShares = spreadSharesForMonth(getSpreads(), key);
+  // A locked month keeps the big-cost shares it had when it was locked,
+  // so editing a big cost later doesn't change an agreed budget.
+  const spreadShares = m.locked && Array.isArray(m.lockedShares) ? m.lockedShares : spreadSharesForMonth(getSpreads(), key);
   const plan = monthPlan({ fixed, spreadShares, walletBudget: m.walletBudget || 0, incomes: getIncomes(key) });
   const carry = carryOverFor(key);
   const startBalance = walletStartBalance({ plan, carryOver: carry.amount, fixed });
   return { m, fixed, spreadShares, plan, carry, startBalance };
+}
+
+/** Is the month's budget agreed and locked? */
+export const isLocked = (key) => Boolean(getMonth(key)?.locked);
+
+export function lockMonth(key) {
+  put({
+    id: `month:${key}`, type: 'month', month: key,
+    locked: true, lockedAt: new Date().toISOString(), lockedBy: device.me,
+    lockedShares: spreadSharesForMonth(getSpreads(), key),
+  });
+}
+
+export function unlockMonth(key) {
+  put({ id: `month:${key}`, type: 'month', month: key, locked: false, lockedShares: null });
 }
 
 export const fixedFor = (key) => live('fixed').filter((r) => r.month === key).sort(byOrder);

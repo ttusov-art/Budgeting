@@ -59,8 +59,12 @@ export function render(main, ctx) {
     ? `Revolut balance ${formatCents(lastCheckin.balance)} on ${shortDateLabel(lastCheckin.date)}`
     : 'Check in with the Revolut balance to see how you are doing';
 
+  const lockNotice = m.locked ? '' : `
+      <a class="notice" href="#month" data-testid="lock-notice">The budget for ${esc(monthLabel(month))} is not locked yet.
+        Agree on it on the Month screen →</a>`;
+
   main.innerHTML = `
-    <div class="stack">
+    <div class="stack">${lockNotice}
       <section class="card hero" aria-label="Wallet status">
         <div class="hero-top"><span class="label">Budget left</span>${versionTag}</div>
         <div class="big num ${budget - spent < 0 ? 'negative' : ''}" data-testid="remaining">${formatCents(budget - spent)}</div>

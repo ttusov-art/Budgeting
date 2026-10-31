@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-31 k
+- Month screen order follows the monthly routine: fixed costs → this month's money → big costs → lock → transfers → summary.
+- "Lock budget": once agreed, salaries, wallet budget, carry-over and the fixed-cost list become read-only and the big-cost shares are frozen. Ticking costs as paid and marking transfers still work. "Unlock" reopens it.
+- Wallet shows a reminder while the month's budget isn't locked.
+
 ## 2026-10-31 j
 - Month: tap a deposit box to mark the transfer as done ("To transfer" ↔ "✓ Transferred"); synced, one record per person.
 - "Private money each" moved to the bottom of the transfers panel.
