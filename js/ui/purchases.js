@@ -35,7 +35,7 @@ export function render(main, ctx) {
       <section class="card" aria-label="To sort">
         <div class="card-head">
           <h2><span class="step">1</span> To sort <span class="muted small" data-testid="sort-count">${queue.length}</span></h2>
-          <label class="btn small-btn" for="csv-file" title="Import Revolut statement (I)">Import CSV <kbd>I</kbd></label>
+          <button class="btn small-btn" data-act="import" title="Import Revolut statement (I)">Import CSV <kbd>I</kbd></button>
           <input id="csv-file" type="file" accept=".csv,text/csv,text/comma-separated-values,application/vnd.ms-excel" hidden>
         </div>
         <p class="muted small" style="margin:0 0 8px">Only ${esc(monthLabel(month))} purchases are imported and shown here.</p>
@@ -98,6 +98,7 @@ ${withdrawCard}
     </div>`;
 
   main.querySelector('#csv-file').addEventListener('change', (e) => importFile(e.target));
+  main.querySelector('[data-act="import"]').addEventListener('click', openImport);
   main.querySelector('[data-act="accept"]')?.addEventListener('click', () => {
     const n = purchases.acceptSuggestions(month);
     toast(`${n} sorted from earlier choices`);
@@ -181,7 +182,42 @@ function expenseRow(e) {
   </button></li>`;
 }
 
-export function openImport() {
+// Opens the Revolut app on Android. Chrome understands these "intent:" links;
+// if it can't open Revolut directly, it shows Revolut in the Play Store, which has an Open button.
+const REVOLUT_APP = 'intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=com.revolut.revolut;end';
+const isAndroid = () => /Android/i.test(navigator.userAgent);
+
+/**
+ * "Import CSV": on the phone, offer to get a fresh statement from Revolut (which then
+ * comes back through Share → Budget) or to pick a file already on the phone.
+ * On a computer, go straight to the file picker.
+ */
+export async function openImport() {
+  if (!isAndroid()) {
+    pickFile();
+    return;
+  }
+  const asked = openForm({
+    title: 'Import Revolut statement',
+    fields: [],
+    submitLabel: 'Choose file',
+    extraHtml: `
+      <a class="btn primary import-revolut" href="${REVOLUT_APP}" data-act="open-revolut">Open Revolut</a>
+      <ol class="small import-steps">
+        <li><b>… More</b> → <b>Statement</b> → <b>Custom</b></li>
+        <li>Period, format <b>CSV</b> → <b>Generate</b></li>
+        <li>Open with <b>Sheets</b> → <b>Share</b> → <b>Budget</b></li>
+      </ol>
+      <p class="muted small">Already have the file on your phone? Choose it below.</p>`,
+  });
+  // Leaving for Revolut: close this window, so the app is tidy when the statement comes back.
+  document.querySelector('#form-dialog [data-act="open-revolut"]').addEventListener('click', () => {
+    setTimeout(() => document.getElementById('form-dialog').close(), 300);
+  });
+  if (await asked) pickFile();
+}
+
+function pickFile() {
   document.getElementById('csv-file')?.click();
 }
 

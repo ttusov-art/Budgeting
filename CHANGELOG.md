@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-31 ze
+- Purchases: on the phone, Import CSV asks: Open Revolut (with the three export steps) or Choose file. On a computer it still opens the file picker straight away.
+
 ## 2026-10-31 zd
 - Purchases help: Revolut → Generate → open with Sheets → Share → Budget (confirmed on Android). Note that the app must be installed from Chrome to appear in the share list.
 

@@ -342,6 +342,9 @@ kbd {
 .sorted-away[open] summary { margin-bottom: 6px; }
 .howto summary { cursor: pointer; font-weight: 600; color: var(--accent); }
 .howto ol { padding-left: 20px; margin: 8px 0; }
+.import-revolut { display: flex; width: 100%; text-decoration: none; margin-top: 4px; }
+#form-dialog:has(.import-revolut) .dialog-actions .btn.primary { background: var(--surface); border-color: var(--line); color: var(--ink); }
+.import-steps { padding-left: 20px; margin: 12px 0 8px; line-height: 1.5; }
 .withdraw-card .big { font-size: clamp(2rem, 8vw, 2.6rem); }
 .pending-line { display: block; margin-top: 10px; font-size: 0.88rem; font-weight: 600; color: var(--accent); text-decoration: none; }
 .notice {

@@ -407,6 +407,11 @@ def run(p):
     check("key 2 opens Wallet", page.url.endswith("#wallet"))
     page.keyboard.press("1")
     check("key 1 opens Month", page.url.endswith("#month"))
+    with page.expect_file_chooser(timeout=2000) as fc:
+        page.keyboard.press("i")
+    check("laptop: I goes straight to the file picker", fc.value is not None)
+    check("laptop: no Revolut chooser", not page.locator("#form-dialog[open]").count())
+    page.keyboard.press("1")
     page.get_by_role("button", name="Start empty").click()
     page.fill("#wallet-budget", "600")
     page.locator("body").click(position={"x": 5, "y": 400})
@@ -550,6 +555,15 @@ def run(p):
     # ===== Weekly purchases: import Revolut CSV, sort, withdraw =====
     FIX = ROOT / "tests" / "fixtures"
     tonis.goto(BASE + "#buys")
+    tonis.get_by_role("button", name=re.compile("Import CSV")).click()
+    link = tonis.locator("#form-dialog a", has_text="Open Revolut")
+    check("phone: Import CSV offers Open Revolut", link.is_visible() and "package=com.revolut.revolut" in (link.get_attribute("href") or ""))
+    with tonis.expect_file_chooser(timeout=2000) as fc:
+        tonis.get_by_role("button", name="Choose file").click()
+    check("phone: Choose file opens the file picker", fc.value is not None)
+    tonis.get_by_role("button", name=re.compile("Import CSV")).click()
+    tonis.keyboard.press("Escape")
+    check("phone: chooser closes with Esc", not tonis.locator("#form-dialog[open]").count())
     tonis.set_input_files("#csv-file", str(FIX / "revolut-week1.csv"))
     expect(tonis.get_by_test_id("sort-count")).to_have_text("3", timeout=3000)
     check("import keeps 3 finished card payments (skips salary and pending)", True)
