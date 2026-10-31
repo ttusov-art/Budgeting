@@ -1,3 +1,3 @@
 // Bump with every delivered change (date + letter, must always increase),
 // and put the same value in version.json.
-export const APP_VERSION = '2026-10-31 zc';
+export const APP_VERSION = '2026-10-31 zd';

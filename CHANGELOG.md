@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-31 zd
+- Purchases help: Revolut → Generate → open with Sheets → Share → Budget (confirmed on Android). Note that the app must be installed from Chrome to appear in the share list.
+
 ## 2026-10-31 zc
 - Purchases help: back to the Sheets route for Revolut statements. Revolut only offers "Open with", and Chrome on Android doesn't list web apps there yet; sharing to Budget still works from apps that offer Share.
 

@@ -30,7 +30,7 @@ On each phone (Chrome on Android):
 1. Open the app's GitHub Pages address.
 2. **Settings → This phone belongs to**: pick your name.
 3. **Sync with Google Sheet**: paste the Web app URL and the sync key → **Test and save**.
-4. Chrome menu → **Add to Home screen**, so it opens like an app.
+4. Chrome menu → **Install app** (use Chrome, not another browser: only an installed app can receive shared Revolut statements).
 
 The top-right chip shows "Synced 08:12" when all is well.
 
