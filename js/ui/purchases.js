@@ -38,9 +38,10 @@ export function render(main) {
           <p class="empty" data-testid="last-sorted">Everything is sorted. ${esc(lastSortedText)}</p>
           <details class="howto"><summary>How to export from Revolut</summary>
             <ol class="small">
-              <li>In the Revolut app: <b>Profile</b> → <b>Documents &amp; statements</b> → <b>Custom statement</b>.</li>
-              <li>Choose your accounts, the last week or two, and the <b>CSV</b> format, then save the file.</li>
-              <li>Tap <b>Import CSV</b> here and pick the file.</li>
+              <li>In the Revolut app, on the home screen: <b>… More</b> → <b>Statement</b>.</li>
+              <li>Choose <b>Custom</b> at the top, set the period (the last week or two) and the format to <b>CSV</b>, then <b>Generate</b>.</li>
+              <li>When it asks which app to open it with, pick <b>Google Sheets</b>, then <b>…</b> → <b>Make a copy</b> → to the device → <b>Save</b>.</li>
+              <li>Tap <b>Import CSV</b> here and pick the saved file.</li>
             </ol>
             <p class="small muted">Overlapping periods are fine: already-imported transactions are skipped.
               Only the EUR account is imported; other currencies are left out.</p>

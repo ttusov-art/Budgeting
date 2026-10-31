@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-31 z
+- Purchases: "How to export from Revolut" now describes the quicker route from the home screen (… More → Statement → Custom → CSV).
+
 ## 2026-10-31 y
 - Wallet: the bar's marker is now labelled "expected by today" (was "plan for today"), and the pace message reads "… % of the expected pace".
 - "+ Add money" stays on the same line as the pace message in the bottom-right corner of Budget left; the message wraps instead.
