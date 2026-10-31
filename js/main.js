@@ -17,14 +17,20 @@ import { toSort } from './purchases.js';
 import { installSwipe } from './ui/swipe.js';
 
 // Order = tab order = swipe order.
-const VIEWS = { wallet: walletView, buys: purchasesView, month: monthView, big: bigView, settings: settingsView };
+// Order = the monthly routine = tab order = swipe order = keys 1–5.
+const VIEWS = { month: monthView, wallet: walletView, buys: purchasesView, big: bigView, settings: settingsView };
 
 const main = document.getElementById('main');
 let currentMonth = monthKeyOf(new Date());
 
 function currentView() {
   const name = location.hash.replace('#', '');
-  return VIEWS[name] ? name : 'wallet';
+  return VIEWS[name] ? name : startView();
+}
+
+/** Where to start when no screen is chosen: Month until this month is locked, then Wallet. */
+function startView() {
+  return state.isLocked(monthKeyOf(new Date())) ? 'wallet' : 'month';
 }
 
 function ctx() {
@@ -247,6 +253,9 @@ state.subscribe(() => {
 document.getElementById('form-dialog').addEventListener('close', () => {
   if (pendingRender) render();
 });
+
+// Opened without a screen in the address (e.g. from the home screen icon): pick the right one.
+if (!VIEWS[location.hash.replace('#', '')]) history.replaceState(null, '', `#${startView()}`);
 
 sync.onStatus(renderSyncChip);
 installShortcuts(actions);

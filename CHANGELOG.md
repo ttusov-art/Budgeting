@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-31 s
+- Screens follow the monthly routine: Month → Wallet → Purchases → Big costs → Settings (tabs, swiping, keys 1–5).
+- Opening the app starts on Month until the current month is locked, then on Wallet.
+
 ## 2026-10-31 r
 - One corner style everywhere: rectangles with slightly rounded corners (panels 12 px, buttons/inputs/chips 10 px, tags 6 px). No more pill or circle buttons. Set once as tokens at the top of css/style.css.
 

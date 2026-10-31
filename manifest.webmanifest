@@ -1,7 +1,7 @@
 {
   "name": "Household Budget",
   "short_name": "Budget",
-  "start_url": "./#wallet",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#151a17",
