@@ -117,6 +117,11 @@ button, .tabs a, .row-btn, .seg label {
 }
 .icon-btn:hover { background: var(--surface-2); }
 
+.step {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 6px;
+  border-radius: var(--r-tag); background: var(--accent-soft); color: var(--accent);
+  font-size: 0.78rem; font-weight: 800; vertical-align: 2px;
+}
 .sync-alert {
   display: block; width: calc(100% - 32px); max-width: 728px; margin: 10px auto 0; padding: 8px 12px;
   border: 0; border-radius: var(--r-control); background: var(--warn-soft); color: var(--warn);
@@ -179,6 +184,7 @@ button, .tabs a, .row-btn, .seg label {
 /* touch-action: pan-y = the browser handles up/down scrolling; sideways swipes are ours. */
 main { max-width: 760px; margin: 0 auto; padding: 16px; outline: none; touch-action: pan-y; }
 html, body { overflow-x: hidden; }
+body { min-height: 100dvh; }
 
 .stack > * + * { margin-top: 14px; }
 

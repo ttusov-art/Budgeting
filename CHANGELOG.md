@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-31 v
+- Purchases: panels in step order (1. To sort, 2. To withdraw). When everything is sorted it shows when you last sorted.
+- Reminder when the last full sort is more than 7 days ago: note on Purchases, "!" on the tab, note on Wallet. An import with nothing new counts as sorted.
+- Swiping between screens now works anywhere on the screen, also on empty space below short pages (e.g. Big costs).
+
 ## 2026-10-31 u
 - Wallet: "Check in balance" is the one main button; "+ Add money" is a quiet link in the lower right of the Budget left panel.
 - Progress bar thinner with a calmer green; the "plan for today" marker is a soft grey line. Orange/red stay strong when over plan.

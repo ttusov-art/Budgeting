@@ -19,29 +19,23 @@ export function render(main) {
   const suggested = queue.filter((tx) => purchases.suggestionFor(tx)).length;
   const settlements = state.getSettlements().slice(0, 8);
 
-  main.innerHTML = `
-    <div class="stack">
-      <section class="card withdraw-card" aria-label="To withdraw">
-        <div class="hero-top"><span class="label">To withdraw from the pocket</span>
-          <span class="muted small">${esc(s.names[me])}</span></div>
-        <div class="big num" data-testid="withdraw-total">${formatCents(myTotal)}</div>
-        <div class="muted">${mine.length ? `${mine.length} common purchase${mine.length > 1 ? 's' : ''} paid with your own money` : 'Nothing to withdraw right now'}</div>
-        ${mine.length ? `
-          <ul class="list" style="margin-top:10px">${mine.map((e) => expenseRow(e)).join('')}</ul>
-          <button class="btn primary" style="margin-top:12px;width:100%" data-act="settle">✓ I've withdrawn ${formatCents(myTotal)}</button>` : ''}
-        ${theirs.length ? `<p class="muted small" style="margin:12px 0 0" data-testid="other-pending">${esc(s.names[other])}: ${theirs.length} purchase${theirs.length > 1 ? 's' : ''}, ${formatCents(sum(theirs))} not withdrawn yet.</p>` : ''}
-      </section>
+  const sorting = purchases.sortStatus();
+  const lastSortedText = sorting.at
+    ? `Last sorted ${purchases.daysAgoLabel(sorting.daysAgo)} (${shortDateLabel(sorting.at.slice(0, 10))}).`
+    : 'Not sorted on this phone yet.';
 
-      <section class="card">
+  // Panels in the order of the steps: 1. sort, 2. withdraw.
+  const sortCard = `
+      <section class="card" aria-label="To sort">
         <div class="card-head">
-          <h2>To sort <span class="muted small" data-testid="sort-count">${queue.length}</span></h2>
+          <h2><span class="step">1</span> To sort <span class="muted small" data-testid="sort-count">${queue.length}</span></h2>
           <label class="btn small-btn" for="csv-file" title="Import Revolut statement (I)">Import CSV <kbd>I</kbd></label>
           <input id="csv-file" type="file" accept=".csv,text/csv,text/comma-separated-values,application/vnd.ms-excel" hidden>
         </div>
         ${suggested ? `<button class="btn" style="width:100%;margin-bottom:8px" data-act="accept">Accept ${suggested} suggestion${suggested > 1 ? 's' : ''}</button>` : ''}
         ${queue.length ? `<button class="btn small-btn" style="margin-bottom:8px" data-act="settle-before" title="Clear purchases that were balanced out some other way">Already settled before…</button>` : ''}
         ${queue.length ? `<ul class="list">${queue.map((tx) => sortRow(tx)).join('')}</ul>` : `
-          <p class="empty">Everything is sorted.</p>
+          <p class="empty" data-testid="last-sorted">Everything is sorted. ${esc(lastSortedText)}</p>
           <details class="howto"><summary>How to export from Revolut</summary>
             <ol class="small">
               <li>In the Revolut app: <b>Profile</b> → <b>Documents &amp; statements</b> → <b>Custom statement</b>.</li>
@@ -51,7 +45,29 @@ export function render(main) {
             <p class="small muted">Overlapping periods are fine: already-imported transactions are skipped.
               Only the EUR account is imported; other currencies are left out.</p>
           </details>`}
-      </section>
+      </section>`;
+
+  const withdrawCard = `
+      <section class="card withdraw-card" aria-label="To withdraw">
+        <div class="hero-top"><span class="label"><span class="step">2</span> To withdraw from the pocket</span>
+          <span class="muted small">${esc(s.names[me])}</span></div>
+        <div class="big num" data-testid="withdraw-total">${formatCents(myTotal)}</div>
+        <div class="muted">${mine.length ? `${mine.length} common purchase${mine.length > 1 ? 's' : ''} paid with your own money` : 'Nothing to withdraw right now'}</div>
+        ${mine.length ? `
+          <ul class="list" style="margin-top:10px">${mine.map((e) => expenseRow(e)).join('')}</ul>
+          <button class="btn primary" style="margin-top:12px;width:100%" data-act="settle">✓ I've withdrawn ${formatCents(myTotal)}</button>` : ''}
+        ${theirs.length ? `<p class="muted small" style="margin:12px 0 0" data-testid="other-pending">${esc(s.names[other])}: ${theirs.length} purchase${theirs.length > 1 ? 's' : ''}, ${formatCents(sum(theirs))} not withdrawn yet.</p>` : ''}
+      </section>`;
+
+  const reminder = sorting.overdue ? `
+      <div class="notice" data-testid="sort-reminder">Last sorted ${esc(purchases.daysAgoLabel(sorting.daysAgo))}.
+        Import your Revolut statement and sort your purchases soon, so the wallet balance is right.</div>` : '';
+
+  main.innerHTML = `
+    <div class="stack">
+${reminder}
+${sortCard}
+${withdrawCard}
 
       <button class="btn" data-act="manual">+ Add common purchase by hand (cash)</button>
 

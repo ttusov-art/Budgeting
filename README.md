@@ -45,7 +45,7 @@ In the order of the monthly routine. The app opens on Month until the month is l
 | --- | --- |
 | Month | Fixed costs (tick when paid), salaries, wallet budget, carry-over, big costs, **lock the budget** (both approve), transfers to the wallet (tap when done), private money, summary; "copy last month" |
 | Wallet | Budget left, pace vs. plan, daily/weekly figures, check-ins, added money and withdrawals; app version |
-| Purchases | Helper for the check-in: import the Revolut CSV, sort purchases into common/personal (with suggestions per shop), withdraw the common total; "Already settled before…" clears old purchases without affecting suggestions; recent withdrawals |
+| Purchases | Helper for the check-in, in steps: 1. import and sort, 2. withdraw; reminds after 7 days without sorting. Import the Revolut CSV, sort purchases into common/personal (with suggestions per shop), withdraw the common total; "Already settled before…" clears old purchases without affecting suggestions; recent withdrawals |
 | Big costs | Spread purchases and recurring bills |
 | Settings | Names, whose phone, sync, backup, shortcuts, privacy |
 

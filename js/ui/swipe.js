@@ -130,5 +130,5 @@ function settle(target, from, kind, edgeDirection = 0) {
 
 // Don't treat dragging inside an input (e.g. selecting text) as a swipe.
 function startsOnControl(target) {
-  return Boolean(target.closest && target.closest('input, textarea, select, [contenteditable="true"]'));
+  return Boolean(target && target.closest && target.closest('input, textarea, select, [contenteditable="true"]'));
 }

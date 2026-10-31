@@ -9,7 +9,8 @@ import * as state from './state.js';
 import * as storage from './storage.js';
 import { parseRevolut, merchantKey } from './lib/revolut.js';
 
-const KEEP_DAYS = 180; // sorted transactions older than this are forgotten (only their keys matter)
+const KEEP_DAYS = 180;
+export const REMIND_AFTER_DAYS = 7; // remind to sort when the last full sort is older than this // sorted transactions older than this are forgotten (only their keys matter)
 
 let inbox = storage.loadInbox(); // { key: { key, date, time, description, amount, personal?: true } }
 let shops = storage.loadShops(); // { merchantKey: 'common' | 'personal' }
@@ -17,7 +18,29 @@ let shops = storage.loadShops(); // { merchantKey: 'common' | 'personal' }
 function save() {
   storage.saveInbox(inbox);
   storage.saveShops(shops);
+  // Nothing left to sort after this change (or after an import with nothing new): remember when.
+  if (toSort().length === 0) storage.saveLastSorted(new Date().toISOString());
   state.notifyChange();
+}
+
+/**
+ * When this phone last had everything sorted, and whether a reminder is due.
+ * { at: ISO | '', daysAgo: number | null, overdue: boolean }
+ * No reminder before the first sort on this phone.
+ */
+export function sortStatus(now = new Date()) {
+  const at = storage.loadLastSorted();
+  if (!at) return { at: '', daysAgo: null, overdue: false };
+  const day = (d) => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  const daysAgo = Math.round((day(now) - day(new Date(at))) / 86400000);
+  return { at, daysAgo, overdue: daysAgo > REMIND_AFTER_DAYS };
+}
+
+/** "today", "yesterday", "3 days ago" */
+export function daysAgoLabel(n) {
+  if (n <= 0) return 'today';
+  if (n === 1) return 'yesterday';
+  return `${n} days ago`;
 }
 
 /** After "Forget this phone": start from what storage now holds (nothing). */
@@ -66,7 +89,7 @@ export function importCsv(text) {
     added++;
   }
   prune();
-  save();
+  save(); // an import with nothing new also counts as "checked and sorted"
   return { added, known, skipped: result.skipped, reasons: result.reasons || {}, otherCurrency: result.otherCurrency || {}, error: null };
 }
 

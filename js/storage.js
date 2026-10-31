@@ -10,6 +10,7 @@ const KEYS = {
   lastSync: 'hb.lastSync',   // when this device last synced (for display)
   inbox: 'hb.inbox',         // imported bank transactions (this phone only, never synced)
   shops: 'hb.shops',         // remembered choice per shop: 'common' | 'personal' (this phone only)
+  lastSorted: 'hb.lastSorted', // when this phone's purchases were last fully sorted (ISO time)
 };
 
 function read(key, fallback) {
@@ -47,6 +48,8 @@ export const loadInbox = () => read(KEYS.inbox, {});
 export const saveInbox = (inbox) => write(KEYS.inbox, inbox);
 export const loadShops = () => read(KEYS.shops, {});
 export const saveShops = (shops) => write(KEYS.shops, shops);
+export const loadLastSorted = () => read(KEYS.lastSorted, '');
+export const saveLastSorted = (iso) => write(KEYS.lastSorted, iso);
 
 export const loadDevice = () => ({ syncUrl: '', syncKey: '', me: 't', ...read(KEYS.device, {}) });
 export const saveDevice = (device) => write(KEYS.device, device);

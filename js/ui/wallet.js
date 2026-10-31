@@ -8,6 +8,7 @@ import { walletSpent, walletPace, checkinSpent } from '../lib/budget.js';
 import { formatCents, formatCentsWhole } from '../lib/money.js';
 import { dateKeyOf, shortDateLabel, monthLabel, daysInMonth } from '../lib/months.js';
 import { APP_VERSION } from '../version.js';
+import { sortStatus, daysAgoLabel } from '../purchases.js';
 import { esc, toast, payerOptions } from './dom.js';
 import { openForm } from './form.js';
 
@@ -74,8 +75,13 @@ export function render(main, ctx) {
       <a class="notice" href="#month" data-testid="lock-notice">The budget for ${esc(monthLabel(month))} is not locked yet.
         Both of you approve it on the Month screen →</a>`;
 
+  const sorting = sortStatus();
+  const sortNotice = sorting.overdue ? `
+      <a class="notice" href="#buys" data-testid="wallet-sort-reminder">Purchases last sorted ${esc(daysAgoLabel(sorting.daysAgo))}.
+        Sort and withdraw them before checking in →</a>` : '';
+
   main.innerHTML = `
-    <div class="stack">${lockNotice}
+    <div class="stack">${lockNotice}${sortNotice}
       <section class="card hero" aria-label="Wallet status">
         <div class="hero-top"><span class="label">Budget left</span>${versionTag}</div>
         <div class="big num ${budget - spent < 0 ? 'negative' : ''}" data-testid="remaining">${formatCents(budget - spent)}</div>

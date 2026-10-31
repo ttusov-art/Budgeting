@@ -13,7 +13,7 @@ import * as monthView from './ui/month.js';
 import * as bigView from './ui/bigcosts.js';
 import * as settingsView from './ui/settings.js';
 import * as purchasesView from './ui/purchases.js';
-import { toSort } from './purchases.js';
+import { toSort, sortStatus } from './purchases.js';
 import { installSwipe } from './ui/swipe.js';
 
 // Order = tab order = swipe order.
@@ -61,10 +61,12 @@ function render() {
   document.querySelector('.month-nav').style.visibility = ['settings', 'buys'].includes(view) ? 'hidden' : 'visible';
 
   // Badge on the Purchases tab: how many imported purchases still need sorting.
+  // Or "!" when sorting is overdue (last full sort more than a week ago).
   const waiting = toSort().length;
+  const overdue = sortStatus().overdue;
   const badge = document.getElementById('buys-badge');
-  badge.hidden = waiting === 0;
-  badge.textContent = waiting > 99 ? '99+' : String(waiting);
+  badge.hidden = waiting === 0 && !overdue;
+  badge.textContent = waiting ? (waiting > 99 ? '99+' : String(waiting)) : '!';
 
   VIEWS[view].render(main, ctx());
   renderSyncChip(sync.getStatus());
@@ -249,7 +251,8 @@ function canStep(step) {
   return i >= 0 && i < names.length;
 }
 
-installSwipe(document.body, {
+// Listen on the whole document, so swiping also works on empty space below short pages.
+installSwipe(document, {
   target: main,
   canGo: canStep,
   onLeft: () => stepView(1),

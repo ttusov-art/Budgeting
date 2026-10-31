@@ -303,6 +303,18 @@ def run(p):
     swipe(page, 60, 30, ms=600)
     swipe(page, -150, ms=1500)
     check("a slow drag does not switch screens", page.url.endswith("#buys"))
+    # Swiping also works on the empty space below a short page (Big costs)
+    page.goto(BASE + "#big")
+    page.evaluate("""async () => {
+        const y = window.innerHeight - 120, el = document.documentElement;
+        const t = (x) => new Touch({ identifier: 2, target: el, clientX: x, clientY: y });
+        el.dispatchEvent(new TouchEvent('touchstart', { bubbles: true, touches: [t(250)], changedTouches: [t(250)] }));
+        await new Promise(r => setTimeout(r, 60));
+        el.dispatchEvent(new TouchEvent('touchmove', { bubbles: true, touches: [t(150)], changedTouches: [t(150)] }));
+        el.dispatchEvent(new TouchEvent('touchend', { bubbles: true, touches: [], changedTouches: [t(100)] }));
+    }""")
+    page.wait_for_timeout(400)
+    check("swiping on empty space below a short page works (Big costs → Settings)", page.url.endswith("#settings"))
     page.goto(BASE + "#month")
     swipe(page, 150)
     check("swipe right on the first screen (Month) stays there and bounces", page.url.endswith("#month") and feedback(page) == "bounce")
@@ -583,6 +595,27 @@ def run(p):
     tonis.locator('#form-dialog [name="balance"]').press("Enter")
     check("check-in after the withdrawal: no double counting (still 149,40)", "149,40" in tonis.get_by_test_id("spent").inner_text())
     check("withdrawal shows in the wallet entries", "withdrew for purchases" in tonis.locator(".list").inner_text())
+
+    # Purchases panels in step order; last-sorted info
+    tonis.goto(BASE + "#buys")
+    labels = tonis.evaluate("[...document.querySelectorAll('main section.card')].map(c => c.getAttribute('aria-label') || '')")
+    check("Purchases: 'To sort' comes before 'To withdraw'", labels.index("To sort") < labels.index("To withdraw"))
+    check("when everything is sorted it says when (today)", "Last sorted today" in tonis.get_by_test_id("last-sorted").inner_text())
+    check("no reminder right after sorting", tonis.get_by_test_id("sort-reminder").count() == 0)
+
+    # Over 7 days since the last full sort → reminders on Purchases, the tab and the Wallet
+    tonis.evaluate("localStorage.setItem('hb.lastSorted', JSON.stringify(new Date(Date.now() - 9 * 86400000).toISOString()))")
+    tonis.reload()
+    tonis.goto(BASE + "#buys")
+    expect(tonis.get_by_test_id("sort-reminder")).to_contain_text("9 days ago", timeout=3000)
+    check("Purchases shows a reminder after 9 days", True)
+    check("the Purchases tab shows '!'", tonis.locator("#buys-badge").inner_text() == "!")
+    tonis.locator('.tabs [data-view="wallet"]').click()
+    check("the Wallet reminds to sort before checking in", "9 days ago" in tonis.get_by_test_id("wallet-sort-reminder").inner_text())
+    tonis.goto(BASE + "#buys")
+    tonis.set_input_files("#csv-file", str(FIX / "revolut-week1.csv"))
+    expect(tonis.locator("#toast")).to_contain_text("already imported", timeout=3000)
+    check("importing (nothing new) counts as sorted: reminder gone", tonis.get_by_test_id("sort-reminder").count() == 0 and tonis.locator("#buys-badge").is_hidden())
 
     # "Already settled before…": clear old purchases without teaching the shop memory
     ctx_s, solo = new_page(browser, device=pixel)
