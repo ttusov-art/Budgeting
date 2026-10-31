@@ -14,8 +14,11 @@ const COLUMNS = {
   started: ['started date', 'startdatum', 'start date', 'date', 'datum'],
   completed: ['completed date', 'abschlussdatum', 'completion date'],
   description: ['description', 'beschreibung'],
-  amount: ['amount', 'betrag'],
-  fee: ['fee', 'gebühr', 'gebuehr', 'gebühren'],
+  amount: ['amount', 'betrag', 'money in/out', 'money in / out', 'geld ein/aus', 'ein-/ausgang'],
+  moneyIn: ['money in', 'paid in', 'eingang'],
+  moneyOut: ['money out', 'paid out', 'ausgang'],
+  fee: ['fee', 'fees', 'gebühr', 'gebuehr', 'gebühren'],
+  category: ['category', 'kategorie'],
   currency: ['currency', 'währung', 'waehrung'],
   state: ['state', 'status'],
   balance: ['balance', 'saldo', 'kontostand'],
@@ -24,9 +27,11 @@ const COLUMNS = {
 /** Split CSV text into rows of fields. Handles quotes and "" inside quotes. */
 export function parseCsv(text) {
   const clean = text.replace(/^﻿/, ''); // Excel/BOM marker
-  const firstLine = clean.split(/\r?\n/, 1)[0];
-  // Comma is Revolut's default; some exports use semicolons.
-  const sep = (firstLine.match(/;/g) || []).length > (firstLine.match(/,/g) || []).length ? ';' : ',';
+  // Comma is Revolut's default; some exports (or Excel re-saves) use semicolons or tabs.
+  // Look at a larger sample, because the first lines can be a title without separators.
+  const sample = clean.slice(0, 20000);
+  const count = (ch) => sample.split(ch).length;
+  const sep = [',', ';', '\t'].reduce((best, ch) => (count(ch) > count(best) ? ch : best), ',');
 
   const rows = [];
   let row = [];
@@ -56,14 +61,59 @@ export function parseCsv(text) {
   return rows;
 }
 
-/** "2026-10-28 14:23:11" or "28.10.2026 14:23" → { date: "2026-10-28", time: "14:23:11" } */
+const MONTHS = {
+  jan: 1, feb: 2, mar: 3, mär: 3, maer: 3, apr: 4, may: 5, mai: 5, jun: 6, jul: 7, aug: 8,
+  sep: 9, sept: 9, oct: 10, okt: 10, nov: 11, dec: 12, dez: 12,
+};
+const TIME = '(\\d{1,2}:\\d{2}(?::\\d{2})?)';
+
+/**
+ * Dates as Revolut writes them, in any of these forms (time optional):
+ *   2026-10-28 14:23:11 · 28.10.2026 14:23 · 28/10/2026 · Oct 28, 2026 · 28 Oct 2026
+ * → { date: "2026-10-28", time: "14:23:11" }, or null.
+ */
 export function parseDateTime(text) {
   const s = (text || '').trim();
-  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}:\d{2}(?::\d{2})?))?/);
-  if (m) return { date: `${m[1]}-${m[2]}-${m[3]}`, time: m[4] || '' };
-  m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:,?\s+(\d{1,2}:\d{2}(?::\d{2})?))?/);
-  if (m) return { date: `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`, time: m[4] || '' };
+  const out = (y, mo, d, t) => {
+    const month = Number(mo);
+    const day = Number(d);
+    if (!(month >= 1 && month <= 12 && day >= 1 && day <= 31)) return null;
+    return { date: `${y}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`, time: t || '' };
+  };
+  let m = s.match(new RegExp(`^(\\d{4})-(\\d{2})-(\\d{2})(?:[ T]${TIME})?`));
+  if (m) return out(m[1], m[2], m[3], m[4]);
+  m = s.match(new RegExp(`^(\\d{1,2})[./](\\d{1,2})[./](\\d{4})(?:,?\\s+${TIME})?`));
+  if (m) return out(m[3], m[2], m[1], m[4]);
+  m = s.match(new RegExp(`^([A-Za-zÄäÖöÜü]{3,9})\\.?\\s+(\\d{1,2}),?\\s+(\\d{4})(?:,?\\s+${TIME})?`));
+  if (m && MONTHS[m[1].slice(0, 3).toLowerCase()]) return out(m[3], MONTHS[m[1].slice(0, 3).toLowerCase()], m[2], m[4]);
+  m = s.match(new RegExp(`^(\\d{1,2})\\.?\\s+([A-Za-zÄäÖöÜü]{3,9})\\.?,?\\s+(\\d{4})(?:,?\\s+${TIME})?`));
+  if (m && MONTHS[m[2].slice(0, 3).toLowerCase()]) return out(m[3], MONTHS[m[2].slice(0, 3).toLowerCase()], m[1], m[4]);
   return null;
+}
+
+const CURRENCY_CODES = ['EUR', 'SEK', 'USD', 'GBP', 'NOK', 'DKK', 'CHF', 'PLN', 'CZK', 'HUF'];
+
+/** Currency written inside an amount ("-€23.45", "SEK -100", "-100 kr"), or null. */
+export function currencyInText(text) {
+  const t = (text || '').toUpperCase();
+  if (t.includes('€')) return 'EUR';
+  if (t.includes('£')) return 'GBP';
+  if (t.includes('$')) return 'USD';
+  const code = CURRENCY_CODES.find((c) => t.includes(c));
+  if (code) return code;
+  if (/\bKR\b/.test(t)) return 'SEK';
+  return null;
+}
+
+/** Amount text with currency signs and codes → cents (negative = money out). */
+export function parseAmount(text) {
+  let t = (text || '').replace(/[\u2212\u2013]/g, '-').replace(/\u00a0/g, ' ');
+  t = t.replace(/€|£|\$|\bkr\b/gi, '');
+  for (const c of CURRENCY_CODES) t = t.replace(new RegExp(c, 'gi'), '');
+  t = t.replace(/^\s*\((.*)\)\s*$/, '-$1'); // (23.45) = minus
+  t = t.replace(/\s|\+/g, '');
+  if (/^-?$/.test(t)) return null;
+  return parseCents(t);
 }
 
 /** Short stable fingerprint of a transaction, so the same one is never imported twice. */
@@ -95,59 +145,105 @@ export function merchantKey(description) {
     .join(' ');
 }
 
-/**
- * Read a Revolut CSV. Returns { transactions, skipped, error }.
- * transactions: outgoing payments only, as
- *   { key, date, time, description, amount (positive cents incl. fee), currency, type }
- * Skipped: incoming money, currency exchanges, savings/pocket rows, unfinished payments.
- */
-export function parseRevolut(text) {
-  const rows = parseCsv(text);
-  if (rows.length < 2) return { transactions: [], skipped: 0, error: 'The file is empty or not a CSV export.' };
-
-  const header = rows[0].map((h) => h.trim().toLowerCase());
+/** Is this row a transactions header? (has a date, a description and an amount-like column) */
+function headerColumns(row) {
+  const header = row.map((h) => (h || '').trim().toLowerCase());
   const col = {};
-  for (const [name, options] of Object.entries(COLUMNS)) {
-    col[name] = header.findIndex((h) => options.includes(h));
-  }
-  if (col.amount < 0 || col.description < 0 || (col.started < 0 && col.completed < 0)) {
-    return {
-      transactions: [], skipped: 0,
-      error: `This doesn't look like a Revolut statement. Columns found: ${rows[0].join(', ')}`,
-    };
-  }
+  for (const [name, options] of Object.entries(COLUMNS)) col[name] = header.findIndex((h) => options.includes(h));
+  const hasAmount = col.amount >= 0 || col.moneyOut >= 0;
+  const hasDate = col.started >= 0 || col.completed >= 0;
+  return hasAmount && hasDate && col.description >= 0 ? col : null;
+}
 
-  const get = (row, name) => (col[name] >= 0 ? (row[col[name]] || '').trim() : '');
+/**
+ * Read a Revolut CSV. Returns { transactions, skipped, otherCurrency, error }.
+ *
+ * Works with both kinds of export:
+ *  - the plain transaction export (header in the first row, with State/Product columns)
+ *  - the app's "Custom statement" (a long introduction about the account(s), then one or more
+ *    sections, each with a "Date, Description, Category, Money in/out, Balance, …" header)
+ *
+ * transactions: outgoing EUR payments only, as
+ *   { key, date, time, description, category, amount (positive cents incl. fee), currency, type }
+ * otherCurrency: { SEK: 12, … } — payments in other currencies that were left out.
+ */
+export function parseRevolut(text, { currency: wanted = 'EUR' } = {}) {
+  const rows = parseCsv(text);
   const transactions = [];
+  const otherCurrency = {};
+  const seen = {}; // identical purchases in one file (same day, shop, amount, balance) get a counter
   let skipped = 0;
+  let sections = 0;
 
-  for (const row of rows.slice(1)) {
-    const amount = parseCents(get(row, 'amount'));
-    const fee = parseCents(get(row, 'fee')) || 0;
-    const type = get(row, 'type').toUpperCase();
-    const state = get(row, 'state').toUpperCase();
-    const product = get(row, 'product').toLowerCase();
-    const when = parseDateTime(get(row, 'started') || get(row, 'completed'));
+  for (let i = 0; i < rows.length; i++) {
+    const col = headerColumns(rows[i]);
+    if (!col) continue;
+    sections++;
 
-    const outgoing = amount !== null && amount < 0;
-    const finished = !state || ['COMPLETED', 'ABGESCHLOSSEN', 'ERLEDIGT'].includes(state);
-    const mainAccount = !product || ['current', 'aktuell', 'girokonto', 'konto'].includes(product);
-    const exchange = type === 'EXCHANGE' || type === 'UMTAUSCH' || type === 'WECHSEL';
-    if (!outgoing || !finished || !mainAccount || exchange || !when) {
-      skipped++;
-      continue;
+    // The account currency of this section: the nearest currency code above the header
+    // (the statement's introduction names the account), unless the rows say otherwise.
+    let sectionCurrency = null;
+    for (let j = i - 1; j >= Math.max(0, i - 60) && !sectionCurrency; j--) {
+      if (headerColumns(rows[j])) break; // stop at the previous section
+      const line = rows[j].join(' ').toUpperCase();
+      sectionCurrency = CURRENCY_CODES.find((c) => new RegExp(`\\b${c}\\b`).test(line)) || null;
     }
 
-    const description = get(row, 'description');
-    transactions.push({
-      key: transactionKey([get(row, 'started') || get(row, 'completed'), description, get(row, 'amount'), get(row, 'balance')]),
-      date: when.date,
-      time: when.time,
-      description,
-      amount: -amount + Math.abs(fee),
-      currency: get(row, 'currency') || 'EUR',
-      type,
-    });
+    const get = (row, name) => (col[name] >= 0 ? (row[col[name]] || '').trim() : '');
+    for (let r = i + 1; r < rows.length; r++) {
+      const row = rows[r];
+      if (headerColumns(row)) break; // next section starts
+      const when = parseDateTime(get(row, 'started') || get(row, 'completed'));
+      if (!when) continue; // titles, totals, blank lines between sections
+
+      let amountText = get(row, 'amount');
+      let amount = parseAmount(amountText);
+      if (amount === null && col.moneyOut >= 0 && get(row, 'moneyOut')) {
+        amountText = get(row, 'moneyOut');
+        amount = -Math.abs(parseAmount(amountText) || 0);
+      }
+      const fee = Math.abs(parseAmount(get(row, 'fee')) || 0);
+      const type = get(row, 'type').toUpperCase();
+      const state = get(row, 'state').toUpperCase();
+      const product = get(row, 'product').toLowerCase();
+      const description = get(row, 'description');
+      const currency = (get(row, 'currency') || currencyInText(amountText) || sectionCurrency || wanted).toUpperCase();
+
+      const outgoing = amount !== null && amount < 0;
+      const finished = !state || ['COMPLETED', 'ABGESCHLOSSEN', 'ERLEDIGT'].includes(state);
+      const mainAccount = !product || ['current', 'aktuell', 'girokonto', 'konto'].includes(product);
+      const exchange = ['EXCHANGE', 'UMTAUSCH', 'WECHSEL'].includes(type) || /^exchanged to\b/i.test(description);
+      if (!outgoing || !finished || !mainAccount || exchange) {
+        skipped++;
+        continue;
+      }
+      if (currency !== wanted) {
+        otherCurrency[currency] = (otherCurrency[currency] || 0) + 1;
+        continue;
+      }
+      // Fingerprint from normalised values, so the same purchase gets the same key
+      // in every export format (plain export or custom statement).
+      const base = [when.date, description.trim().toLowerCase(), amount, parseAmount(get(row, 'balance')) ?? ''].join('|');
+      seen[base] = (seen[base] || 0) + 1;
+      transactions.push({
+        key: transactionKey([base, seen[base]]),
+        date: when.date,
+        time: when.time,
+        description,
+        category: get(row, 'category'),
+        amount: -amount + fee,
+        currency,
+        type,
+      });
+    }
   }
-  return { transactions, skipped, error: null };
+
+  if (!sections) {
+    const preview = rows.slice(0, 3).map((r) => r.filter(Boolean).join(', ')).join(' | ');
+    return {
+      transactions: [], skipped: 0, otherCurrency,
+      error: `No transaction list found in this file. It should contain a header like "Date, Description, …, Money in/out". The file starts with: ${preview.slice(0, 160)}`,
+    };
+  }
+  return { transactions, skipped, otherCurrency, error: null };
 }

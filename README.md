@@ -104,9 +104,6 @@ python3 tests/update.spec.py       # a new version arrives on reload despite Git
 
 Test data in `tests/fixtures/` is made up.
 
-```
-```
-
 ## Privacy
 
 - Imported bank statements and purchases marked personal stay on the phone that imported them.

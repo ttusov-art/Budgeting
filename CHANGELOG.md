@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-31 m
+- Pop-up messages: app colours (no white box), slightly rounded rectangle, long text wraps.
+- Revolut import reads the app's "Custom statement" CSV: finds the transaction list after the introduction, handles several account sections, month-name dates and amounts with currency signs.
+- Only the EUR account is imported; payments in other currencies (e.g. SEK) are reported as left out.
+- Duplicate check uses normalised values, so the same purchase is recognised across export formats; identical purchases on one day are kept apart.
+- Revolut's category is shown under each purchase to sort.
+
 ## 2026-10-31 l
 - New **Purchases** screen for the weekly routine: import the Revolut statement (CSV), sort each purchase into common or personal, then record the withdrawal from the shared pocket.
 - The app remembers per shop what you chose and suggests it next time ("Accept suggestions").

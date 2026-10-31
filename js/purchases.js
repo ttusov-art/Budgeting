@@ -53,7 +53,7 @@ export function toSort() {
  */
 export function importCsv(text) {
   const result = parseRevolut(text);
-  if (result.error) return { added: 0, known: 0, skipped: 0, error: result.error };
+  if (result.error) return { added: 0, known: 0, skipped: 0, otherCurrency: {}, error: result.error };
   let added = 0;
   let known = 0;
   for (const tx of result.transactions) {
@@ -61,12 +61,12 @@ export function importCsv(text) {
       known++;
       continue;
     }
-    inbox[tx.key] = { key: tx.key, date: tx.date, time: tx.time, description: tx.description, amount: tx.amount };
+    inbox[tx.key] = { key: tx.key, date: tx.date, time: tx.time, description: tx.description, amount: tx.amount, category: tx.category || '' };
     added++;
   }
   prune();
   save();
-  return { added, known, skipped: result.skipped, error: null };
+  return { added, known, skipped: result.skipped, otherCurrency: result.otherCurrency || {}, error: null };
 }
 
 /** Mark one transaction as 'common' or 'personal' (or back to 'new'). */

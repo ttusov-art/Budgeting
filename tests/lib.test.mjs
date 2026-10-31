@@ -7,7 +7,8 @@ import { parseCents, formatCents, centsToInput } from '../js/lib/money.js';
 import { addMonths, monthsBetween, daysInMonth, daysElapsed } from '../js/lib/months.js';
 import { spreadSharesForMonth, monthPlan, spentSoFar, walletPace, walletStartBalance, lastBalance } from '../js/lib/budget.js';
 import { mergeRecords } from '../js/lib/merge.js';
-import { parseCsv, parseRevolut, merchantKey, parseDateTime } from '../js/lib/revolut.js';
+import { parseCsv, parseRevolut, merchantKey, parseDateTime, parseAmount } from '../js/lib/revolut.js';
+import { readFileSync } from 'node:fs';
 import { walletSpent } from '../js/lib/budget.js';
 
 test('parseCents understands German and English number styles', () => {
@@ -181,7 +182,53 @@ test('Revolut CSV: German headers and semicolons work too', () => {
 });
 
 test('Revolut CSV: a wrong file gives a clear error', () => {
-  assert.match(parseRevolut('name,age\nTom,3').error, /doesn't look like a Revolut statement/);
+  assert.match(parseRevolut('name,age\nTom,3').error, /No transaction list found/);
+});
+
+test('Custom statement from the app: finds the EUR section after a long introduction', () => {
+  const text = readFileSync(new URL('./fixtures/revolut-custom-statement.csv', import.meta.url), 'utf8');
+  const r = parseRevolut(text);
+  assert.equal(r.error, null);
+  assert.deepEqual(r.transactions.map((t) => t.description), ['Lidl 4521 Berlin', 'Bäckerei Schmidt, Mitte', 'Bio Hofladen Erde']);
+  assert.deepEqual(r.transactions.map((t) => t.amount), [2345, 480, 1035]);
+  assert.equal(r.transactions[0].date, '2026-10-26');
+  assert.equal(r.transactions[0].category, 'Groceries');
+  assert.deepEqual(r.otherCurrency, { SEK: 2 }); // SEK payments left out and reported
+});
+
+test('dates and amounts in the forms Revolut uses', () => {
+  for (const [text, date] of [['Oct 28, 2026', '2026-10-28'], ['28 Oct 2026', '2026-10-28'], ['28 Okt. 2026', '2026-10-28'],
+    ['28/10/2026', '2026-10-28'], ['2026-10-28 14:00:00', '2026-10-28'], ['Mai 3, 2026', '2026-05-03']]) {
+    assert.equal(parseDateTime(text).date, date, text);
+  }
+  assert.equal(parseDateTime('Total'), null);
+  assert.equal(parseAmount('-€23.45'), -2345);
+  assert.equal(parseAmount('−23,45 €'), -2345);
+  assert.equal(parseAmount('SEK -1,234.00'), -123400);
+  assert.equal(parseAmount('(10.00)'), -1000);
+  assert.equal(parseAmount('+2,500.00'), 250000);
+  assert.equal(parseAmount(''), null);
+});
+
+test('the same purchase gets the same key in both export formats', () => {
+  const plain = parseRevolut(readFileSync(new URL('./fixtures/revolut-week1.csv', import.meta.url), 'utf8')).transactions.map((t) => t.key);
+  const custom = parseRevolut(readFileSync(new URL('./fixtures/revolut-custom-statement.csv', import.meta.url), 'utf8')).transactions.map((t) => t.key);
+  assert.deepEqual(custom, plain);
+});
+
+test('two identical purchases on one day are both kept', () => {
+  const text = 'Date,Description,Money in/out\n"Oct 28, 2026",Coffee,-3.00\n"Oct 28, 2026",Coffee,-3.00';
+  const keys = parseRevolut(text).transactions.map((t) => t.key);
+  assert.equal(keys.length, 2);
+  assert.notEqual(keys[0], keys[1]);
+});
+
+test('Custom statement with semicolons and German decimals', () => {
+  const text = 'Kontoauszug\nKonto;EUR\nTransaction statement\nDate;Description;Category;Money in/out;Balance;Fees\n'
+    + '28.10.2026;Edeka;Groceries;-12,30 €;100,00;0,00';
+  const r = parseRevolut(text);
+  assert.equal(r.error, null);
+  assert.equal(r.transactions[0].amount, 1230);
 });
 
 test('CSV parsing handles quotes', () => {

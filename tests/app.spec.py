@@ -474,6 +474,13 @@ def run(p):
     tonis.get_by_role("button", name="Kino International: personal").click()
     check("withdraw total now 49,40 €", "49,40" in tonis.get_by_test_id("withdraw-total").inner_text())
 
+    # The app's "Custom statement" format: long introduction, EUR and SEK sections
+    tonis.set_input_files("#csv-file", str(FIX / "revolut-custom-statement.csv"))
+    expect(tonis.locator("#toast")).to_contain_text("2 in SEK left out", timeout=3000)
+    check("custom statement: EUR purchases recognised as already imported, SEK reported", "3 already imported" in tonis.locator("#toast").inner_text())
+    check("pop-up message has square-ish corners and the app's colours",
+          tonis.evaluate("(() => { const t = getComputedStyle(document.getElementById('toast')); return t.borderRadius === '10px' && t.backgroundColor !== 'rgb(255, 255, 255)'; })()"))
+
     # Wallet counts unwithdrawn common purchases as spent already: 800 − 700 balance = 100, + 49,40
     tonis.locator('.tabs [data-view="wallet"]').click()
     check("wallet: common purchases count as spent before withdrawal", "149,40" in tonis.get_by_test_id("spent").inner_text())

@@ -43,11 +43,12 @@ export function render(main) {
           <p class="empty">Everything is sorted.</p>
           <details class="howto"><summary>How to export from Revolut</summary>
             <ol class="small">
-              <li>In the Revolut app, open your <b>personal account</b> (not the shared pocket).</li>
-              <li>Tap <b>⋯</b> → <b>Statement</b> → choose <b>Excel / CSV</b> and the last week or two.</li>
-              <li>Save the file, then tap <b>Import CSV</b> here and pick it.</li>
+              <li>In the Revolut app: <b>Profile</b> → <b>Documents &amp; statements</b> → <b>Custom statement</b>.</li>
+              <li>Choose your accounts, the last week or two, and the <b>CSV</b> format, then save the file.</li>
+              <li>Tap <b>Import CSV</b> here and pick the file.</li>
             </ol>
-            <p class="small muted">Overlapping periods are fine: already-imported transactions are skipped.</p>
+            <p class="small muted">Overlapping periods are fine: already-imported transactions are skipped.
+              Only the EUR account is imported; other currencies are left out.</p>
           </details>`}
       </section>
 
@@ -96,7 +97,7 @@ function sortRow(tx) {
   const hint = suggestion ? `<span class="suggest ${suggestion}">usually ${suggestion}</span>` : '';
   return `<li class="row sort-row">
     <span class="grow"><span class="title">${esc(tx.description)}</span>
-      <span class="sub">${esc(shortDateLabel(tx.date))} ${hint}</span></span>
+      <span class="sub">${esc([shortDateLabel(tx.date), tx.category].filter(Boolean).join(' · '))} ${hint}</span></span>
     <span class="amount">${formatCents(tx.amount)}</span>
     <span class="choice">
       <button class="chip-btn ${suggestion === 'personal' ? 'suggested' : ''}" data-choose="${esc(tx.key)}" data-choice="personal" aria-label="${esc(tx.description)}: personal">Personal</button>
@@ -128,7 +129,9 @@ async function importFile(input) {
   }
   const parts = [`${r.added} new purchase${r.added === 1 ? '' : 's'}`];
   if (r.known) parts.push(`${r.known} already imported`);
-  toast(parts.join(', '));
+  const other = Object.entries(r.otherCurrency || {}).map(([cur, n]) => `${n} in ${cur}`);
+  if (other.length) parts.push(`${other.join(', ')} left out (budget is in EUR)`);
+  toast(parts.join(' · '));
 }
 
 async function settle(me) {
