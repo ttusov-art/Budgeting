@@ -151,8 +151,18 @@ def run(p):
     dep_k = page.get_by_test_id("deposit-k").inner_text()
     check("private money 1.747,01 € each", "1.747,01" in page.get_by_test_id("private").inner_text())
     check("Tõnis deposits 1.177,01 €", "1.177,01" in dep_t and "into the wallet" in dep_t)
-    check("Kristiina gets 247,01 € back", "247,01" in dep_k and "gets back" in dep_k)
+    check("Kristiina gets 247,01 € back", "247,01" in dep_k and "back from the wallet" in dep_k)
 
+    check("deposit starts as 'To transfer'", page.get_by_test_id("status-t").inner_text() == "To transfer")
+    page.get_by_test_id("deposit-t").click()
+    check("tapping Tõnis's deposit marks it transferred", "Transferred" in page.get_by_test_id("status-t").inner_text())
+    check("Kristiina's (money back) shows 'To receive'", page.get_by_test_id("status-k").inner_text() == "To receive")
+    page.get_by_test_id("deposit-t").click()
+    check("tapping again sets it back to 'To transfer'", page.get_by_test_id("status-t").inner_text() == "To transfer")
+    page.get_by_test_id("deposit-t").click()
+    box = page.locator(".card[aria-label=Result]")
+    check("private money is at the bottom of the panel",
+          box.locator(".private-line").bounding_box()["y"] > box.locator(".deposits").bounding_box()["y"])
     page.locator('[data-paid]').first.check()
     page.wait_for_timeout(50)
     check("ticking paid strikes the row through", page.locator(".row.is-paid").count() == 1)
@@ -243,6 +253,7 @@ def run(p):
     page.locator("#next-month").click()
     page.get_by_role("button", name="Copy from October 2026").click()
     check("November copied 3 fixed costs, all unpaid", page.locator("[data-paid]").count() == 3 and page.locator(".row.is-paid").count() == 0)
+    check("a new month starts with transfers not done", page.get_by_test_id("status-t").inner_text() == "To transfer")
     check("November copied the salaries", page.input_value("#income-t") == "3000,00" and page.input_value("#income-k") == "2500,00")
 
     # Big cost: 300 € washer over 3 months paid by Tõnis, from November
@@ -363,6 +374,12 @@ def run(p):
     expect(tonis.locator("#income-k")).to_have_value("2600,00", timeout=5000)
     check("salaries entered at the same time on both phones are both kept",
           kris.input_value("#income-t") == "3100,00" and tonis.input_value("#income-t") == "3100,00")
+    # Transfer status syncs: Kristiina marks hers, Tõnis sees it
+    kris.get_by_test_id("deposit-k").click()
+    kris.wait_for_timeout(2500)
+    tonis.keyboard.press("Control+s")
+    expect(tonis.get_by_test_id("status-k")).to_contain_text("✓", timeout=5000)
+    check("transfer status syncs to the other phone", True)
     kris.goto(BASE + "#wallet")
 
     kris.get_by_role("button", name=re.compile("Add money")).click()

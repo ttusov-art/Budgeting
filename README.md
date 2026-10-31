@@ -34,7 +34,7 @@ Every month you enter both salaries, agree on the wallet size, and list the fixe
 | Screen | What it does |
 | --- | --- |
 | Wallet | Budget left, pace vs. plan, daily/weekly figures, check-ins and added money; app version |
-| Month | Private money and deposits, salaries, wallet budget, fixed costs (tick when paid), summary; "copy last month" |
+| Month | Transfers to the wallet (tap when done) and private money, salaries, wallet budget, fixed costs (tick when paid), summary; "copy last month" |
 | Big costs | Spread purchases and recurring bills |
 | Settings | Names, whose phone, sync, backup, shortcuts, privacy |
 
@@ -81,7 +81,7 @@ tests/                 unit tests + Playwright end-to-end tests (made-up data)
 ### Data model
 
 Everything is a flat list of **records**, each with `id`, `type`, `updatedAt`, `deleted`, `by`:
-`settings`, `month` (wallet budget), `income` (one per person per month, so both phones can enter theirs at once), `fixed`, `spread`, `checkin` (balance), `topup` (money added). Amounts are whole
+`settings`, `month` (wallet budget), `income` (one per person per month, so both phones can enter theirs at once), `fixed`, `spread`, `checkin` (balance), `topup` (money added), `transfer` (deposit done, one per person per month). Amounts are whole
 cents. Deleting marks a record `deleted` so the deletion can reach the other phone. When both phones
 changed the same record, the newer change wins.
 

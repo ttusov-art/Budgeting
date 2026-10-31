@@ -22,7 +22,7 @@ export function render(main, ctx) {
 
   main.innerHTML = `
     <div class="stack">
-      ${resultCard(s, plan)}
+      ${resultCard(s, plan, state.getTransfersDone(month))}
 
       <section class="card">
         <h2>This month's money</h2>
@@ -86,6 +86,15 @@ export function render(main, ctx) {
   }
 
   main.querySelector('[data-act="add-fixed"]').addEventListener('click', () => editFixed(ctx));
+  // Tapping a deposit box toggles "to transfer" ↔ "transferred".
+  main.querySelectorAll('[data-transfer]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const p = btn.dataset.transfer;
+      const now = !state.getTransfersDone(month)[p];
+      state.setTransferDone(month, p, now);
+      toast(now ? 'Marked as transferred' : 'Marked as still to transfer', { label: 'Undo', run: state.undo });
+    });
+  });
   main.querySelectorAll('[data-paid]').forEach((box) => {
     box.addEventListener('change', () => state.put({ id: box.dataset.paid, paid: box.checked }));
   });
@@ -141,7 +150,7 @@ function carryField(carry) {
     It adds to the balance, not to the budget.</p>`;
 }
 
-function resultCard(s, plan) {
+function resultCard(s, plan, done) {
   if (!plan.hasIncomes) {
     return `<section class="card" aria-label="Result">
       <h2>Private money and deposits</h2>
@@ -151,24 +160,33 @@ function resultCard(s, plan) {
   const warn = plan.leftover < 0
     ? `<p class="form-error" style="margin:10px 0 0">Costs and wallet are ${formatCents(-plan.leftover)} more than both salaries together.</p>` : '';
   return `<section class="card" aria-label="Result">
-    <h2>Private money each <span class="num" data-testid="private">${formatCents(plan.privateMoney.t)}</span></h2>
+    <h2>Transfers to the wallet</h2>
     <div class="deposits">
-      ${depositBox('t', s, plan)}
-      ${depositBox('k', s, plan)}
+      ${depositBox('t', s, plan, done.t)}
+      ${depositBox('k', s, plan, done.k)}
     </div>
-    <p class="muted small" style="margin:10px 0 0">The leftover of both salaries, after costs and the wallet, is split evenly.
+    <p class="muted small" style="margin:10px 0 0">Tap a box when the transfer is done in Revolut.
       Deposit = salary − own-account costs − private half.</p>
     ${warn}
+    <div class="private-line">
+      <span>Private money each</span>
+      <span class="num" data-testid="private">${formatCents(plan.privateMoney.t)}</span>
+    </div>
   </section>`;
 }
 
-function depositBox(p, s, plan) {
+function depositBox(p, s, plan, isDone) {
   const v = plan.deposit[p];
-  return `<div class="deposit ${p}" data-testid="deposit-${p}">
-    <div class="who">${esc(s.names[p])} <span class="muted small">${esc(s.initials[p])}</span></div>
-    <div class="v num">${formatCents(Math.abs(v))}</div>
-    <div class="muted small">${v >= 0 ? 'into the wallet' : 'gets back from the wallet'}</div>
-  </div>`;
+  const status = v >= 0
+    ? (isDone ? '✓ Transferred' : 'To transfer')
+    : (isDone ? '✓ Received' : 'To receive');
+  return `<button type="button" class="deposit ${p} ${isDone ? 'is-done' : ''}" data-testid="deposit-${p}"
+      data-transfer="${p}" aria-pressed="${isDone}">
+    <span class="who">${esc(s.names[p])} <span class="muted small">${esc(s.initials[p])}</span></span>
+    <span class="v num">${formatCents(Math.abs(v))}</span>
+    <span class="muted small">${v >= 0 ? 'into the wallet' : 'back from the wallet'}</span>
+    <span class="status" data-testid="status-${p}">${status}</span>
+  </button>`;
 }
 
 function fixedRow(f) {

@@ -280,7 +280,24 @@ kbd {
 .sumtable tr.total td { font-weight: 750; border-top: 2px solid var(--ink); }
 
 .deposits { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.deposit { border-radius: var(--radius-sm); padding: 12px; background: var(--surface-2); }
+.deposit {
+  border-radius: var(--radius-sm); padding: 12px; background: var(--surface-2);
+  border: 1px solid transparent; text-align: left; display: flex; flex-direction: column; gap: 2px;
+  min-width: 0; color: var(--ink);
+}
+.deposit:active { transform: scale(0.98); }
+.deposit .status {
+  align-self: flex-start; margin-top: 8px; padding: 3px 10px; border-radius: 999px;
+  font-size: 0.8rem; font-weight: 700; background: var(--warn-soft); color: var(--warn);
+}
+.deposit.is-done { border-color: var(--good); }
+.deposit.is-done .status { background: var(--good-soft); color: var(--good); }
+.deposit.is-done .v { color: var(--ink-soft); }
+.private-line {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); font-weight: 700;
+}
+.private-line .num { font-size: 1.15rem; }
 .deposit.t { border-left: 5px solid var(--t-color); }
 .deposit.k { border-left: 5px solid var(--k-color); }
 .deposit .who { font-weight: 700; }

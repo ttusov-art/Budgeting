@@ -199,6 +199,23 @@ export function setIncome(key, person, cents) {
 }
 
 /**
+ * Has each person done their wallet transfer this month? { t: bool, k: bool }
+ * One record per person, so both phones can tick at the same time.
+ */
+export function getTransfersDone(key) {
+  const result = { t: false, k: false };
+  for (const p of ['t', 'k']) {
+    const r = records[`transfer:${key}:${p}`];
+    if (r && !r.deleted) result[p] = Boolean(r.done);
+  }
+  return result;
+}
+
+export function setTransferDone(key, person, done) {
+  put({ id: `transfer:${key}:${person}`, type: 'transfer', month: key, person, done });
+}
+
+/**
  * Carry-over into a month: typed on the Month screen (override), or
  * automatically the balance of the previous month's last check-in.
  */

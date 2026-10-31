@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-31 j
+- Month: tap a deposit box to mark the transfer as done ("To transfer" ↔ "✓ Transferred"); synced, one record per person.
+- "Private money each" moved to the bottom of the transfers panel.
+
 ## 2026-10-31 i
 - Swiping now gives visible feedback: the page follows your finger, slides out when switching, bounces back at the first/last screen, and glides back when the swipe was too short.
 
