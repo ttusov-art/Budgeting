@@ -166,7 +166,6 @@ export function getSettings() {
   return {
     names: { t: 'Tõnis', k: 'Kristiina', ...(s.names || {}) },
     initials: { t: 'TT', k: 'KM', ...(s.initials || {}) },
-    split: { t: 0.5, ...(s.split || {}) },
   };
 }
 
@@ -178,6 +177,24 @@ export function saveSettings(changes) {
 export function getMonth(key) {
   const r = records[`month:${key}`];
   return r && !r.deleted ? r : null;
+}
+
+/**
+ * Salaries for a month: { t: cents, k: cents }.
+ * Each salary is its own record, so both phones can enter theirs at
+ * the same time without one overwriting the other.
+ */
+export function getIncomes(key) {
+  const result = { t: 0, k: 0 };
+  for (const p of ['t', 'k']) {
+    const r = records[`income:${key}:${p}`];
+    if (r && !r.deleted) result[p] = r.amount || 0;
+  }
+  return result;
+}
+
+export function setIncome(key, person, cents) {
+  put({ id: `income:${key}:${person}`, type: 'income', month: key, person, amount: cents });
 }
 
 export const fixedFor = (key) => live('fixed').filter((r) => r.month === key).sort(byOrder);
@@ -192,19 +209,23 @@ export const monthIsSetUp = (key) => Boolean(getMonth(key)) || fixedFor(key).len
 export function previousSetUpMonth(key) {
   const keys = new Set(
     Object.values(records)
-      .filter((r) => !r.deleted && (r.type === 'month' || r.type === 'fixed') && r.month < key)
+      .filter((r) => !r.deleted && (r.type === 'month' || r.type === 'fixed' || r.type === 'income') && r.month < key)
       .map((r) => r.month),
   );
   return [...keys].sort().pop() || null;
 }
 
-/** Start a month by copying budget and fixed costs (all unpaid) from another month. */
+/** Start a month by copying salaries, budget and fixed costs (all unpaid) from another month. */
 export function copyMonth(fromKey, toKey) {
   const from = getMonth(fromKey);
   const changes = [{
     id: `month:${toKey}`, type: 'month', month: toKey,
     walletBudget: from ? from.walletBudget : 0,
   }];
+  const incomes = getIncomes(fromKey);
+  for (const p of ['t', 'k']) {
+    if (incomes[p]) changes.push({ id: `income:${toKey}:${p}`, type: 'income', month: toKey, person: p, amount: incomes[p] });
+  }
   for (const f of fixedFor(fromKey)) {
     changes.push({
       id: newId('fx'), type: 'fixed', month: toKey, name: f.name, amount: f.amount,

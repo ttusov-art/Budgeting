@@ -30,6 +30,9 @@ const PLAIN = {
 
 function isTyping(target) {
   if (!target) return false;
+  // A field inside a dialog that has just closed doesn't count as typing.
+  const dlg = target.closest && target.closest('dialog');
+  if (dlg && !dlg.open) return false;
   const tag = target.tagName;
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
 }

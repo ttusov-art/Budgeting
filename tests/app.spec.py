@@ -106,7 +106,12 @@ def run(p):
     check("month title shows October 2026", page.locator("#month-title").inner_text() == "October 2026")
     page.get_by_role("button", name="Start empty").click()
 
+    check("asks for salaries before showing deposits", "Enter both salaries" in page.locator("main").inner_text())
     page.fill("#wallet-budget", "930")
+    page.keyboard.press("Enter")
+    page.fill("#income-t", "3000")
+    page.keyboard.press("Enter")
+    page.fill("#income-k", "2500")
     page.keyboard.press("Enter")
     page.wait_for_timeout(100)
 
@@ -119,11 +124,13 @@ def run(p):
         dlg.get_by_text(payer, exact=True).click()
         dlg.get_by_role("button", name="Save").click()
     # Total = 1000 + 50 + 25.98 + 930 = 2005.98 → 1002.99 each
-    # Tõnis deposit 1002.99 - 75.98 = 927.01 ; Kristiina 1002.99 - 1000 = 2.99
+    # Salaries 5500 − costs 2005.98 = leftover 3494.02 → 1747.01 private each
+    # Tõnis: 3000 − 75.98 − 1747.01 = 1177.01 in; Kristiina: 2500 − 1000 − 1747.01 = −247.01 (gets back)
     dep_t = page.get_by_test_id("deposit-t").inner_text()
     dep_k = page.get_by_test_id("deposit-k").inner_text()
-    check("Tõnis deposit 927,01 €", "927,01" in dep_t)
-    check("Kristiina deposit 2,99 €", "2,99" in dep_k)
+    check("private money 1.747,01 € each", "1.747,01" in page.get_by_test_id("private").inner_text())
+    check("Tõnis deposits 1.177,01 €", "1.177,01" in dep_t and "into the wallet" in dep_t)
+    check("Kristiina gets 247,01 € back", "247,01" in dep_k and "gets back" in dep_k)
 
     page.locator('[data-paid]').first.check()
     page.wait_for_timeout(50)
@@ -163,6 +170,7 @@ def run(p):
     page.locator("#next-month").click()
     page.get_by_role("button", name="Copy from October 2026").click()
     check("November copied 3 fixed costs, all unpaid", page.locator("[data-paid]").count() == 3 and page.locator(".row.is-paid").count() == 0)
+    check("November copied the salaries", page.input_value("#income-t") == "3000,00" and page.input_value("#income-k") == "2500,00")
 
     # Big cost: 300 € washer over 3 months paid by Tõnis, from November
     page.get_by_role("link", name=re.compile("Big costs")).click()
@@ -175,8 +183,8 @@ def run(p):
     dlg.get_by_role("button", name="Save").click()
     page.screenshot(path=str(SHOTS / "phone-412-bigcosts.png"), full_page=True)
     page.get_by_role("link", name=re.compile("Month")).click()
-    # Total = 2005.98 + 100 = 2105.98 → 1052.99 each; Tõnis paid 175.98 → 877.01
-    check("big cost share moves into Tõnis's paid part", "877,01" in page.get_by_test_id("deposit-t").inner_text())
+    # Costs 2105.98 → leftover 3394.02 → 1697.01 each; Tõnis 3000 − 175.98 − 1697.01 = 1127.01
+    check("big cost share lowers private money and counts as Tõnis's payment", "1.127,01" in page.get_by_test_id("deposit-t").inner_text() and "1.697,01" in page.get_by_test_id("private").inner_text())
     ctx.close()
 
     # ===== 2. Laptop with keyboard =====
@@ -246,6 +254,22 @@ def run(p):
     kris.keyboard.press("Control+s")
     expect(kris.get_by_test_id("remaining")).to_contain_text("800,00", timeout=5000)
     check("Kristiina's phone receives Tõnis's budget", True)
+
+    # Both enter their own salary before syncing: neither may overwrite the other.
+    kris.goto(BASE + "#month")
+    tonis.fill("#income-t", "3100")
+    tonis.keyboard.press("Enter")
+    kris.fill("#income-k", "2600")
+    kris.keyboard.press("Enter")
+    tonis.keyboard.press("Control+s")
+    tonis.wait_for_timeout(300)
+    kris.keyboard.press("Control+s")
+    kris.wait_for_timeout(300)
+    tonis.keyboard.press("Control+s")
+    expect(tonis.locator("#income-k")).to_have_value("2600,00", timeout=5000)
+    check("salaries entered at the same time on both phones are both kept",
+          kris.input_value("#income-t") == "3100,00" and tonis.input_value("#income-t") == "3100,00")
+    kris.goto(BASE + "#wallet")
 
     kris.get_by_role("button", name=re.compile("Add purchase")).click()
     kris.locator('#form-dialog [name="amount"]').fill("45")

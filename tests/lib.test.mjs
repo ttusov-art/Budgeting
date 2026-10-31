@@ -54,7 +54,7 @@ test('periodic bill sets aside amount / period every month', () => {
   assert.equal(spreadSharesForMonth(ended, '2026-07').length, 0);
 });
 
-test('month plan: deposits = half of total minus what each already paid', () => {
+test('month plan: leftover of both salaries is split evenly, deposits fill the wallet', () => {
   const plan = monthPlan({
     fixed: [
       { amount: 100000, payer: 'k' }, // rent, Kristiina pays
@@ -62,23 +62,28 @@ test('month plan: deposits = half of total minus what each already paid', () => 
     ],
     spreadShares: [{ amount: 3000, payer: 't' }],
     walletBudget: 80000,
+    incomes: { t: 300000, k: 250000 },
   });
   assert.equal(plan.householdTotal, 188000);
-  assert.deepEqual(plan.share, { t: 94000, k: 94000 });
-  assert.deepEqual(plan.deposit, { t: 86000, k: -6000 });
-  // Together the deposits fill exactly the wallet budget.
+  assert.equal(plan.leftover, 362000);              // 5500 − 1880
+  assert.deepEqual(plan.privateMoney, { t: 181000, k: 181000 });
+  // Tõnis: 3000 − 80 own costs − 1810 private = 1110 into the wallet
+  // Kristiina: 2500 − 1000 rent − 1810 private = −310 → gets 310 back
+  assert.deepEqual(plan.deposit, { t: 111000, k: -31000 });
   assert.equal(plan.walletIn, 80000);
+  assert.ok(plan.hasIncomes);
 });
 
 test('month plan: costs paid from the wallet raise the deposits', () => {
-  const plan = monthPlan({ fixed: [{ amount: 2000, payer: 'wallet' }], spreadShares: [], walletBudget: 10000 });
+  const plan = monthPlan({ fixed: [{ amount: 2000, payer: 'wallet' }], spreadShares: [], walletBudget: 10000, incomes: { t: 50000, k: 50000 } });
   assert.equal(plan.walletIn, 12000);
   assert.equal(plan.deposit.t + plan.deposit.k, 12000);
 });
 
-test('odd cents split without losing a cent', () => {
-  const plan = monthPlan({ fixed: [], spreadShares: [], walletBudget: 10001 });
-  assert.equal(plan.share.t + plan.share.k, 10001);
+test('odd cents: private halves add up exactly', () => {
+  const plan = monthPlan({ fixed: [], spreadShares: [], walletBudget: 0, incomes: { t: 10001, k: 0 } });
+  assert.equal(plan.privateMoney.t + plan.privateMoney.k, 10001);
+  assert.equal(plan.hasIncomes, false);
 });
 
 test('spent so far: latest check-in plus purchases after it', () => {

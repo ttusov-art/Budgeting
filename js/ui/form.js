@@ -37,12 +37,19 @@ export function openForm({ title, fields, submitLabel = 'Save', deleteLabel = nu
   const form = dlg.querySelector('form');
   const errorEl = dlg.querySelector('.form-error');
 
+  // Remember where focus was, to give it back when the form closes.
+  const opener = document.activeElement;
+
   return new Promise((resolve) => {
     let done = false;
     const finish = (result) => {
       if (done) return;
       done = true;
       if (dlg.open) dlg.close();
+      // Without this, focus can stay on an input inside the closed dialog,
+      // and keyboard shortcuts would think you are still typing.
+      if (dlg.contains(document.activeElement)) document.activeElement.blur();
+      if (opener && opener.isConnected && opener !== document.body) opener.focus({ preventScroll: true });
       resolve(result);
     };
 
