@@ -4,10 +4,13 @@ Three parts: put the app on GitHub Pages, connect a private Google Sheet, open i
 
 ## 1. Put the app online (GitHub Pages)
 
-1. On github.com, create a new repository, e.g. `household-budget` (public is fine: it contains no data and no keys).
+Already done: the app lives in the `tusov-home/Budgeting` repository and is online at
+**https://tusov-home.github.io/Budgeting/**. The steps below are for setting it up from scratch.
+
+1. On github.com, create a new repository, e.g. `Budgeting` in the `tusov-home` organisation (public is fine: it contains no data and no keys).
 2. Upload the contents of this folder (everything except `tests/screenshots`). The folder `apps-script` can go up too; it holds no secrets.
 3. Repository **Settings → Pages → Build and deployment**: Source *Deploy from a branch*, branch `main`, folder `/ (root)`. Save.
-4. After a minute the app is at `https://<your-username>.github.io/household-budget/`.
+4. After a minute the app is at `https://<owner>.github.io/<repository>/`, here `https://tusov-home.github.io/Budgeting/`.
 
 ## 2. Create the private Google Sheet and its sync script
 
@@ -27,12 +30,24 @@ Three parts: put the app on GitHub Pages, connect a private Google Sheet, open i
 
 On each phone (Chrome on Android):
 
-1. Open the app's GitHub Pages address.
+1. Open https://tusov-home.github.io/Budgeting/ .
 2. **Settings → This phone belongs to**: pick your name.
 3. **Sync with Google Sheet**: paste the Web app URL and the sync key → **Test and save**.
 4. Chrome menu → **Install app** (use Chrome, not another browser: only an installed app can receive shared Revolut statements).
 
 The top-right chip shows "Synced 08:12" when all is well.
+
+## Moving to a new address
+
+The browser keeps the app's data per address. After the move from `ttusov-art.github.io/Budgeting`
+to `tusov-home.github.io/Budgeting`, each phone starts empty at the new address:
+
+1. Uninstall the old Budget app from the phone (the old address now shows a 404 page).
+2. Open the new address in Chrome, then **Settings → This phone belongs to** and **Sync with Google Sheet**
+   (same Web app URL and sync key). Everything synced comes back from the Sheet.
+3. Chrome menu → **Install app**.
+4. Phone-only data does not move: unsorted imported purchases, the per-shop suggestions, and phone settings
+   (e.g. vibration). Import the latest Revolut statement again; suggestions build up again as you sort.
 
 ## Later: changing the script
 

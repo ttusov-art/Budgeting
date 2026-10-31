@@ -5,6 +5,8 @@ Once a month: enter salaries, the wallet budget and fixed costs, and the app tel
 private money and how much to deposit into the shared wallet (Revolut). During the month: check in
 with the Revolut balance and see whether you are ahead of or behind plan.
 
+**App address: https://tusov-home.github.io/Budgeting/** (repository `tusov-home/Budgeting`; until October 2026 it was `ttusov-art/Budgeting`, whose old address no longer works).
+
 Setup: see **SETUP.md**. Updates are tested and pushed to this repository directly; after a push, press **Reload** in the app's update banner.
 
 ## How the money works
