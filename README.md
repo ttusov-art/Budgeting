@@ -56,6 +56,8 @@ Every month you enter both salaries, agree on the wallet size, and list the fixe
 
 Shortcuts don't fire while you type in a field.
 
+On a phone, **swipe left / right** to move between the four screens.
+
 ## Files
 
 ```

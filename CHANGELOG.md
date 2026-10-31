@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-31 g
+- Swipe left/right to move between Wallet, Month, Big costs and Settings (phones).
+
 ## 2026-10-31 f
 - Android status and navigation bars now match the app background (no bright green edges).
 - Entry titles wrap instead of running under the amount.

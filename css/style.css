@@ -342,6 +342,12 @@ dialog h2 { margin: 0 0 14px; font-size: 1.15rem; }
 .prose p { margin: 0 0 8px; }
 .prose ul { margin: 0 0 8px; padding-left: 20px; }
 
+/* Screen change after a swipe: slide in from the side it came from. */
+main.slide-from-right { animation: slide-from-right 0.18s ease-out; }
+main.slide-from-left { animation: slide-from-left 0.18s ease-out; }
+@keyframes slide-from-right { from { transform: translateX(24px); opacity: 0.4; } }
+@keyframes slide-from-left { from { transform: translateX(-24px); opacity: 0.4; } }
+
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }

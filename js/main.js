@@ -12,6 +12,7 @@ import * as walletView from './ui/wallet.js';
 import * as monthView from './ui/month.js';
 import * as bigView from './ui/bigcosts.js';
 import * as settingsView from './ui/settings.js';
+import { installSwipe } from './ui/swipe.js';
 
 const VIEWS = { wallet: walletView, month: monthView, big: bigView, settings: settingsView };
 
@@ -181,10 +182,33 @@ document.getElementById('month-title').addEventListener('click', actions.today);
 document.getElementById('sync-chip').addEventListener('click', doSync);
 document.getElementById('reload-btn').addEventListener('click', reloadFresh);
 
+// Which way the next screen slides in ('left', 'right' or null).
+let slideFrom = null;
+
 window.addEventListener('hashchange', () => {
   render();
+  if (slideFrom) {
+    main.classList.remove('slide-from-left', 'slide-from-right');
+    void main.offsetWidth; // restart the animation
+    main.classList.add(`slide-from-${slideFrom}`);
+    slideFrom = null;
+  }
   main.focus({ preventScroll: true });
   window.scrollTo(0, 0);
+});
+
+/** Go to the screen `step` places away in tab order (+1 = next, −1 = previous). */
+function stepView(step) {
+  const names = Object.keys(VIEWS);
+  const i = names.indexOf(currentView()) + step;
+  if (i < 0 || i >= names.length) return; // already at the first/last screen
+  slideFrom = step > 0 ? 'right' : 'left';
+  location.hash = names[i];
+}
+
+installSwipe(document.body, {
+  onLeft: () => stepView(1),
+  onRight: () => stepView(-1),
 });
 
 let renderQueued = false;

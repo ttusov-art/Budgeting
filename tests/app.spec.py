@@ -88,6 +88,19 @@ def new_page(browser, device=None, viewport=None, sheet=None):
     return ctx, page
 
 
+def swipe(page, dx, dy=0, ms=150):
+    """Simulate a one-finger swipe on the page (dx < 0 = right-to-left)."""
+    page.evaluate("""async ([dx, dy, ms]) => {
+        const x0 = 200, y0 = 450, el = document.querySelector('main');
+        const touch = (x, y) => new Touch({ identifier: 1, target: el, clientX: x, clientY: y });
+        el.dispatchEvent(new TouchEvent('touchstart', { bubbles: true, touches: [touch(x0, y0)], changedTouches: [touch(x0, y0)] }));
+        await new Promise(r => setTimeout(r, ms));
+        const end = touch(x0 + dx, y0 + dy);
+        el.dispatchEvent(new TouchEvent('touchend', { bubbles: true, touches: [], changedTouches: [end] }));
+    }""", [dx, dy, ms])
+    page.wait_for_timeout(50)
+
+
 def fill_form(page, values):
     dlg = page.locator("#form-dialog")
     for name, val in values.items():
@@ -189,6 +202,26 @@ def run(p):
         overflow = page.evaluate("document.documentElement.scrollWidth > window.innerWidth")
         check(f"no horizontal scroll at {w}px (month)", not overflow)
         page.goto(BASE + "#wallet")
+
+    # Swipe between screens
+    page.goto(BASE + "#wallet")
+    swipe(page, -150)
+    check("swipe left: Wallet → Month", page.url.endswith("#month"))
+    swipe(page, -150)
+    check("swipe left: Month → Big costs", page.url.endswith("#big"))
+    swipe(page, 150)
+    check("swipe right: back to Month", page.url.endswith("#month"))
+    swipe(page, 40, 300)
+    check("scrolling down does not switch screens", page.url.endswith("#month"))
+    swipe(page, -150, ms=1500)
+    check("a slow drag does not switch screens", page.url.endswith("#month"))
+    page.goto(BASE + "#wallet")
+    swipe(page, 150)
+    check("swipe right on the first screen stays there", page.url.endswith("#wallet"))
+    page.get_by_role("button", name=re.compile("Check in")).click()
+    swipe(page, -150)
+    check("no swipe while a form is open", page.url.endswith("#wallet"))
+    page.keyboard.press("Escape")
 
     # Next month: copy from October
     page.set_viewport_size({"width": 412, "height": 915})
