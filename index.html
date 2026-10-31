@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Household Budget</title>
+  <meta name="description" content="Shared household budget and wallet tracker.">
+  <meta name="theme-color" content="#2f6b4f">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="month-nav" aria-label="Month">
+        <button class="icon-btn" id="prev-month" title="Previous month (←)" aria-label="Previous month">‹</button>
+        <button class="month-title" id="month-title" title="Go to this month (T)"></button>
+        <button class="icon-btn" id="next-month" title="Next month (→)" aria-label="Next month">›</button>
+      </div>
+      <button class="sync-chip" id="sync-chip" title="Sync now (Ctrl+S)"></button>
+    </div>
+  </header>
+  <nav class="tabs" aria-label="Screens">
+    <a href="#wallet" data-view="wallet" title="Wallet (1)"><span class="tab-icon" aria-hidden="true">◎</span>Wallet</a>
+    <a href="#month" data-view="month" title="Month (2)"><span class="tab-icon" aria-hidden="true">▤</span>Month</a>
+    <a href="#big" data-view="big" title="Big costs (3)"><span class="tab-icon" aria-hidden="true">◇</span>Big costs</a>
+    <a href="#settings" data-view="settings" title="Settings (4)"><span class="tab-icon" aria-hidden="true">⚙</span>Settings</a>
+  </nav>
+
+  <div class="banner" id="update-banner" hidden>
+    A new version is available. <button class="link-btn" id="reload-btn">Reload</button>
+  </div>
+
+  <main id="main" tabindex="-1"></main>
+
+  <dialog id="form-dialog" aria-labelledby="form-dialog-title"></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
