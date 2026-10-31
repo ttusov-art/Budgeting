@@ -33,6 +33,8 @@ Every month you enter both salaries, agree on the wallet size, and list the fixe
   common or personal, and withdraw the common total from the shared pocket. Common purchases count as
   spent as soon as they are sorted: spent = start + top-ups − balance − withdrawals this month for
   earlier months' purchases + this month's common purchases not yet withdrawn at the check-in.
+  On Android, a statement generated in Revolut can be shared straight to the app (share target /
+  file handler in the manifest; the service worker hands the file to the Purchases screen).
 - **Big costs**: a one-off purchase is spread evenly over N months; a recurring bill (yearly,
   half-yearly, quarterly) sets aside amount ÷ period every month. The share counts as paid by
   whoever pays the bill.

@@ -40,9 +40,10 @@ export function render(main) {
             <ol class="small">
               <li>In the Revolut app, on the home screen: <b>… More</b> → <b>Statement</b>.</li>
               <li>Choose <b>Custom</b> at the top, set the period (the last week or two) and the format to <b>CSV</b>, then <b>Generate</b>.</li>
-              <li>When it asks which app to open it with, pick <b>Google Sheets</b>, then <b>…</b> → <b>Make a copy</b> → to the device → <b>Save</b>.</li>
-              <li>Tap <b>Import CSV</b> here and pick the saved file.</li>
+              <li>In the list of apps, pick <b>Budget</b> (Household Budget). The purchases land here, ready to sort.</li>
             </ol>
+            <p class="small muted">Budget not in the list? Remove the app's home-screen icon and add it again from Chrome
+              (Android only learns about this option when the icon is installed). Or save the file and tap <b>Import CSV</b>.</p>
             <p class="small muted">Overlapping periods are fine: already-imported transactions are skipped.
               Only the EUR account is imported; other currencies are left out.</p>
           </details>`}
@@ -175,7 +176,12 @@ async function importFile(input) {
   const file = input.files[0];
   input.value = '';
   if (!file) return;
-  const r = purchases.importCsv(await file.text());
+  importText(await file.text());
+}
+
+/** Import a statement's text (from the file picker or from Android's share sheet) and say what happened. */
+export function importText(text) {
+  const r = purchases.importCsv(text);
   if (r.error) {
     toast(r.error);
     return;

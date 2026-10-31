@@ -289,6 +289,43 @@ sync.startAutoSync();
 checkForUpdate();
 setInterval(checkForUpdate, 30 * 60 * 1000);
 
+// Statements handed to the app by Android: "Share" → Household Budget
+// (share target, parked by the service worker) or "Open with" → Household
+// Budget (file handler, delivered through launchQueue).
+async function takeSharedStatements() {
+  const params = new URLSearchParams(location.search);
+  if (!params.has('shared')) return;
+  history.replaceState(null, '', location.pathname + '#buys');
+  let texts = [];
+  try {
+    const cache = await caches.open('household-budget-shared');
+    const key = new URL('shared-statements', location.href).href;
+    const stored = await cache.match(key);
+    if (stored) texts = await stored.json();
+    await cache.delete(key);
+  } catch { /* nothing parked */ }
+  importShared(texts);
+}
+
+function importShared(texts) {
+  location.hash = 'buys';
+  if (!texts.length) {
+    toast('No statement file arrived. Choose CSV as the format in Revolut and share the file.');
+    return;
+  }
+  texts.forEach((t) => purchasesView.importText(t));
+}
+
+takeSharedStatements();
+if ('launchQueue' in window) {
+  window.launchQueue.setConsumer(async (launch) => {
+    if (!launch.files || !launch.files.length) return;
+    const texts = [];
+    for (const handle of launch.files) texts.push(await (await handle.getFile()).text());
+    importShared(texts);
+  });
+}
+
 // Service workers need a secure page: https (GitHub Pages) or localhost.
 if ('serviceWorker' in navigator && window.isSecureContext) {
   navigator.serviceWorker.register('sw.js').catch(() => {});

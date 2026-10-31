@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-31 za
+- Revolut statements can be sent straight to the app: after Generate, pick Budget in Android's Share / Open with list, and the purchases are imported on the Purchases screen (share target + file handler). No Google Sheets or saving step needed. The file stays on the phone.
+
 ## 2026-10-31 z
 - Purchases: "How to export from Revolut" now describes the quicker route from the home screen (… More → Statement → Custom → CSV).
 

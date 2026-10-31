@@ -9,13 +9,23 @@ self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil((async () => {
   // Remove caches from older versions of this file.
   for (const key of await caches.keys()) {
-    if (key !== CACHE) await caches.delete(key);
+    if (key !== CACHE && key !== SHARED) await caches.delete(key);
   }
   await self.clients.claim();
 })()));
 
+// Files shared to the app (Android share sheet → Household Budget) arrive
+// here as a POST. We park their text in a separate cache and send the app
+// to the Purchases screen, which picks them up and imports them.
+// Nothing leaves the phone.
+const SHARED = 'household-budget-shared';
+
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
+  if (e.request.method === 'POST' && url.origin === self.location.origin && url.pathname.endsWith('/share-target')) {
+    e.respondWith(receiveShare(e.request));
+    return;
+  }
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
   if (url.pathname.endsWith('version.json')) return; // always ask the network
 
@@ -43,4 +53,21 @@ function withNoCache(response) {
   const headers = new Headers(response.headers);
   headers.set('Cache-Control', 'no-cache');
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
+async function receiveShare(request) {
+  const base = new URL('./', self.location.href);
+  try {
+    const form = await request.formData();
+    const texts = [];
+    for (const file of form.getAll('statement')) {
+      if (file && typeof file.text === 'function') texts.push(await file.text());
+    }
+    const cache = await caches.open(SHARED);
+    await cache.put(new URL('shared-statements', base).href, new Response(JSON.stringify(texts), { headers: { 'Content-Type': 'application/json' } }));
+  } catch {
+    // Fall through: the app will say that nothing arrived.
+  }
+  // 303 = "now open this page with a normal GET".
+  return Response.redirect(new URL('./?shared=1#buys', base).href, 303);
 }
