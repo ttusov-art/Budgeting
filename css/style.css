@@ -157,7 +157,9 @@ button, .tabs a, .row-btn, .seg label {
 
 /* ---------- layout ---------- */
 
-main { max-width: 760px; margin: 0 auto; padding: 16px; outline: none; }
+/* touch-action: pan-y = the browser handles up/down scrolling; sideways swipes are ours. */
+main { max-width: 760px; margin: 0 auto; padding: 16px; outline: none; touch-action: pan-y; }
+html, body { overflow-x: hidden; }
 
 .stack > * + * { margin-top: 14px; }
 

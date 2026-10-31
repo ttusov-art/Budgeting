@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-31 i
+- Swiping now gives visible feedback: the page follows your finger, slides out when switching, bounces back at the first/last screen, and glides back when the swipe was too short.
+
 ## 2026-10-31 h
 - Swiping between screens is more sensitive (shorter, slower and more diagonal swipes count).
 

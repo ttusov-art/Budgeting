@@ -206,7 +206,15 @@ function stepView(step) {
   location.hash = names[i];
 }
 
+function canStep(step) {
+  const names = Object.keys(VIEWS);
+  const i = names.indexOf(currentView()) + step;
+  return i >= 0 && i < names.length;
+}
+
 installSwipe(document.body, {
+  target: main,
+  canGo: canStep,
   onLeft: () => stepView(1),
   onRight: () => stepView(-1),
 });

@@ -89,16 +89,24 @@ def new_page(browser, device=None, viewport=None, sheet=None):
 
 
 def swipe(page, dx, dy=0, ms=150):
-    """Simulate a one-finger swipe on the page (dx < 0 = right-to-left)."""
+    """Simulate a one-finger swipe on the page (dx < 0 = right-to-left), with moves in between."""
     page.evaluate("""async ([dx, dy, ms]) => {
         const x0 = 200, y0 = 450, el = document.querySelector('main');
         const touch = (x, y) => new Touch({ identifier: 1, target: el, clientX: x, clientY: y });
-        el.dispatchEvent(new TouchEvent('touchstart', { bubbles: true, touches: [touch(x0, y0)], changedTouches: [touch(x0, y0)] }));
-        await new Promise(r => setTimeout(r, ms));
-        const end = touch(x0 + dx, y0 + dy);
-        el.dispatchEvent(new TouchEvent('touchend', { bubbles: true, touches: [], changedTouches: [end] }));
+        const fire = (type, x, y, active) => el.dispatchEvent(new TouchEvent(type, { bubbles: true,
+            touches: active ? [touch(x, y)] : [], changedTouches: [touch(x, y)] }));
+        fire('touchstart', x0, y0, true);
+        for (let i = 1; i <= 5; i++) {
+            await new Promise(r => setTimeout(r, ms / 5));
+            fire('touchmove', x0 + dx * i / 5, y0 + dy * i / 5, true);
+        }
+        fire('touchend', x0 + dx, y0 + dy, false);
     }""", [dx, dy, ms])
-    page.wait_for_timeout(50)
+    page.wait_for_timeout(400)  # let the slide / bounce animation finish
+
+
+def feedback(page):
+    return page.evaluate("document.querySelector('main').dataset.swipeFeedback || ''")
 
 
 def fill_form(page, values):
@@ -206,7 +214,7 @@ def run(p):
     # Swipe between screens
     page.goto(BASE + "#wallet")
     swipe(page, -150)
-    check("swipe left: Wallet → Month", page.url.endswith("#month"))
+    check("swipe left: Wallet → Month (with slide feedback)", page.url.endswith("#month") and feedback(page) == "go")
     swipe(page, -150)
     check("swipe left: Month → Big costs", page.url.endswith("#big"))
     swipe(page, 150)
@@ -220,7 +228,10 @@ def run(p):
     check("a slow drag does not switch screens", page.url.endswith("#month"))
     page.goto(BASE + "#wallet")
     swipe(page, 150)
-    check("swipe right on the first screen stays there", page.url.endswith("#wallet"))
+    check("swipe right on the first screen stays there and bounces", page.url.endswith("#wallet") and feedback(page) == "bounce")
+    swipe(page, -20)
+    check("too-short swipe glides back without switching", page.url.endswith("#wallet") and feedback(page) == "cancel")
+    check("page is back in place after the feedback", page.evaluate("getComputedStyle(document.querySelector('main')).transform") in ("none", "matrix(1, 0, 0, 1, 0, 0)"))
     page.get_by_role("button", name=re.compile("Check in")).click()
     swipe(page, -150)
     check("no swipe while a form is open", page.url.endswith("#wallet"))
