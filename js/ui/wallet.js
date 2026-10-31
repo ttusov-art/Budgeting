@@ -85,12 +85,14 @@ export function render(main, ctx) {
           <div class="meter-mark" style="left:calc(${markPct}% - 1px)" title="Plan for today"></div>
         </div>
         <div class="meter-legend"><span>Day ${p.elapsed} of ${p.days}</span><span>▮ plan for today: ${formatCentsWhole(p.expected)}</span></div>
-        <div class="pace-pill ${hasData ? level : ''}" data-testid="pace"><span>${esc(paceText)}</span>${pacePct ? `<span class="pace-sub">${esc(pacePct)}</span>` : ''}</div>
+        <div class="hero-bottom">
+          <div class="pace-pill ${hasData ? level : ''}" data-testid="pace"><span>${esc(paceText)}</span>${pacePct ? `<span class="pace-sub">${esc(pacePct)}</span>` : ''}</div>
+          <button class="quiet-btn" data-act="topup" title="Put personal money into the wallet (A)">+ Add money</button>
+        </div>
       </section>
 
       <div class="btn-row grow">
-        <button class="btn primary" data-act="checkin" title="Check in the Revolut balance (C)">Check in <kbd>C</kbd></button>
-        <button class="btn" data-act="topup" title="Add money (A)">Add money <kbd>A</kbd></button>
+        <button class="btn primary" data-act="checkin" title="Check in the Revolut balance (C)">Check in balance <kbd>C</kbd></button>
       </div>
       ${pendingLine}
       <p class="muted small" style="margin-top:8px" data-testid="balance-line">${esc(balanceLine)}${extras.length ? ` · includes ${esc(extras.join(' + '))}` : ''}</p>

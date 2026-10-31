@@ -232,13 +232,20 @@ kbd {
 .hero .big { font-size: clamp(2.2rem, 9vw, 3rem); font-weight: 750; letter-spacing: -0.03em; line-height: 1.1; margin: 4px 0 2px; }
 .hero .big.negative { color: var(--bad); }
 
-.meter { position: relative; height: 14px; background: var(--surface-2); border-radius: var(--r-tag); margin: 16px 0 8px; overflow: visible; }
-.meter-fill { position: absolute; inset: 0 auto 0 0; border-radius: var(--r-tag); background: var(--good); max-width: 100%; }
+.meter { position: relative; height: 8px; background: var(--surface-2); border-radius: var(--r-tag); margin: 18px 0 8px; overflow: visible; }
+/* Calm when all is well; orange/red stay strong so being over plan stands out. */
+.meter-fill { position: absolute; inset: 0 auto 0 0; border-radius: var(--r-tag); background: color-mix(in srgb, var(--good) 45%, var(--surface-2)); max-width: 100%; }
 .meter-fill.warn { background: var(--warn); }
 .meter-fill.bad { background: var(--bad); }
-.meter-mark { position: absolute; top: -5px; bottom: -5px; width: 3px; border-radius: 2px; background: var(--ink); }
+.meter-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; border-radius: 1px; background: var(--ink-soft); }
 .meter-legend { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--ink-soft); }
 
+.hero-bottom { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.quiet-btn {
+  margin-left: auto; border: 0; background: none; padding: 6px 2px; min-height: 36px;
+  color: var(--ink-soft); font-size: 0.85rem; font-weight: 600;
+}
+.quiet-btn:hover { color: var(--ink); text-decoration: underline; }
 .pace-pill {
   display: inline-flex; flex-direction: column; gap: 0;
   padding: 6px 12px; border-radius: var(--r-control); font-weight: 650; margin-top: 12px;

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-31 u
+- Wallet: "Check in balance" is the one main button; "+ Add money" is a quiet link in the lower right of the Budget left panel.
+- Progress bar thinner with a calmer green; the "plan for today" marker is a soft grey line. Orange/red stay strong when over plan.
+
 ## 2026-10-31 t
 - Sync status moved out of the header (too close to the month arrows) into the Wallet panel, merged with the version: "● Synced 16:17 · v31.10 t". Tap to sync.
 - Other screens show an orange line under the header only when sync fails or changes wait offline.
