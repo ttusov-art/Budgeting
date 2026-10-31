@@ -5,9 +5,9 @@
 
 import { isFormOpen } from './form.js';
 
-const MIN_DISTANCE = 70;   // px sideways before it counts
-const MAX_TIME = 700;      // ms; slower drags are probably reading/scrolling
-const SIDEWAYS_RATIO = 1.8; // sideways movement must clearly beat up/down movement
+const MIN_DISTANCE = 40;   // px sideways before it counts
+const MAX_TIME = 1000;     // ms; slower drags are probably reading/scrolling
+const SIDEWAYS_RATIO = 1.2; // sideways movement must beat up/down movement
 
 /**
  * installSwipe(element, { onLeft, onRight })

@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-31 h
+- Swiping between screens is more sensitive (shorter, slower and more diagonal swipes count).
+
 ## 2026-10-31 g
 - Swipe left/right to move between Wallet, Month, Big costs and Settings (phones).
 
