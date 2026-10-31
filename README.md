@@ -83,6 +83,7 @@ changed the same record, the newer change wins.
 ```
 node --test tests/lib.test.mjs     # logic
 python3 tests/app.spec.py          # app on Pixel 7 + 1366 px laptop, incl. two-phone sync (fake Sheet)
+python3 tests/update.spec.py       # a new version arrives on reload despite GitHub's caching
 ```
 
 ## Privacy

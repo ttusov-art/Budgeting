@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-31 d
+- Fix: "Reload" for a new version could bring back the old version on the laptop for up to 10 minutes (GitHub Pages caching). The service worker now has Chrome re-check every file, and Reload clears saved copies first.
+- New test: tests/update.spec.py checks updates arrive through GitHub-like caching.
+
 ## 2026-10-31 c
 - Check-ins now record the **balance left in the wallet**; spent = start balance − balance. A new check-in replaces the previous one instead of mixing totals.
 - Month: optional "Left in the wallet from last month"; the summary shows what the wallet starts the month with.

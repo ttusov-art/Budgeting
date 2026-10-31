@@ -141,13 +141,44 @@ async function checkForUpdate() {
   }
 }
 
+/**
+ * Reload with the newest files: let the new service worker take over,
+ * throw away saved copies, then reload.
+ */
+async function reloadFresh() {
+  const btn = document.getElementById('reload-btn');
+  btn.disabled = true;
+  btn.textContent = 'Loading…';
+  try {
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) {
+        await reg.update();
+        if (reg.installing || reg.waiting) {
+          // Wait (max 3 s) until the new service worker controls this page.
+          await new Promise((resolve) => {
+            navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true });
+            setTimeout(resolve, 3000);
+          });
+        }
+      }
+    }
+    if (window.caches) {
+      for (const key of await caches.keys()) await caches.delete(key);
+    }
+  } catch {
+    // Whatever happens, still reload.
+  }
+  location.reload();
+}
+
 // ---------- start ----------
 
 document.getElementById('prev-month').addEventListener('click', actions.prevMonth);
 document.getElementById('next-month').addEventListener('click', actions.nextMonth);
 document.getElementById('month-title').addEventListener('click', actions.today);
 document.getElementById('sync-chip').addEventListener('click', doSync);
-document.getElementById('reload-btn').addEventListener('click', () => location.reload());
+document.getElementById('reload-btn').addEventListener('click', reloadFresh);
 
 window.addEventListener('hashchange', () => {
   render();
@@ -182,6 +213,7 @@ sync.startAutoSync();
 checkForUpdate();
 setInterval(checkForUpdate, 30 * 60 * 1000);
 
-if ('serviceWorker' in navigator && location.protocol === 'https:') {
+// Service workers need a secure page: https (GitHub Pages) or localhost.
+if ('serviceWorker' in navigator && window.isSecureContext) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
