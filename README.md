@@ -9,11 +9,14 @@ Setup: see **SETUP.md**.
 
 ## How the money works
 
-- **Household total** = fixed costs + this month's share of big costs + wallet budget.
-- Each person carries **half** of it.
-- **Deposit into the wallet** = your half − the costs you already pay from your own account.
+Every month you enter both salaries, agree on the wallet size, and list the fixed costs.
+
+- **Household costs** = fixed costs + this month's share of big costs + wallet budget.
+- **Leftover** = both salaries − household costs. It is split **evenly in two** as private money.
+- **Deposit into the wallet** = your salary − the costs you pay from your own account − your private half.
   (Kristiina's costs are the old `*`, Tõnis's the old `**`; you pick the payer per cost.)
-  A negative deposit means that person paid more than their half.
+  Together the two deposits always equal the wallet budget (plus any costs paid from the wallet).
+  A negative deposit means that person gets that amount back.
 - **Pace** = spent so far ÷ (wallet budget × days elapsed ÷ days in month). Below 100 % = under plan.
 - **Spent so far** = the latest check-in + purchases logged after it.
 - **Big costs**: a one-off purchase is spread evenly over N months; a recurring bill (yearly,
@@ -25,7 +28,7 @@ Setup: see **SETUP.md**.
 | Screen | What it does |
 | --- | --- |
 | Wallet | Left in the wallet, pace vs. plan, daily/weekly figures, check-ins and purchases |
-| Month | Deposits, wallet budget, fixed costs (tick when paid), summary; "copy last month" |
+| Month | Private money and deposits, salaries, wallet budget, fixed costs (tick when paid), summary; "copy last month" |
 | Big costs | Spread purchases and recurring bills |
 | Settings | Names, whose phone, sync, backup, shortcuts, privacy |
 
@@ -69,7 +72,7 @@ tests/                 unit tests + Playwright end-to-end tests (made-up data)
 ### Data model
 
 Everything is a flat list of **records**, each with `id`, `type`, `updatedAt`, `deleted`, `by`:
-`settings`, `month` (wallet budget), `fixed`, `spread`, `checkin`, `purchase`. Amounts are whole
+`settings`, `month` (wallet budget), `income` (one per person per month, so both phones can enter theirs at once), `fixed`, `spread`, `checkin`, `purchase`. Amounts are whole
 cents. Deleting marks a record `deleted` so the deletion can reach the other phone. When both phones
 changed the same record, the newer change wins.
 

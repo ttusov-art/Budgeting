@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-31 b
+- Salaries per month: the leftover of both salaries (after fixed costs, big costs and the wallet) is split evenly as private money; deposits follow from that.
+- Each salary syncs as its own record, so both phones can enter theirs at the same time.
+- "Copy last month" also copies the salaries.
+- Fix: keyboard shortcuts were ignored right after closing a form with Esc.
+
 ## 2026-10-31 a — first version
 - Month setup: wallet budget, fixed costs with payer and "paid" tick, copy from last month.
 - Deposits for each person (half of the household total minus own payments).
