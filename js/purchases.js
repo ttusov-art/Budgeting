@@ -64,25 +64,35 @@ export function suggestionFor(tx) {
   return shops[merchantKey(tx.description)] || null;
 }
 
-/** Transactions still waiting to be sorted, newest first. */
-export function toSort() {
+const inMonth = (month) => (tx) => !month || tx.date.slice(0, 7) === month;
+
+/** Transactions still waiting to be sorted, newest first. With a month ('2026-10'), only that month's. */
+export function toSort(month = null) {
   return Object.values(inbox)
-    .filter((tx) => statusOf(tx) === 'new')
+    .filter((tx) => statusOf(tx) === 'new' && inMonth(month)(tx))
     .sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
 }
 
 /**
  * Read a Revolut CSV and add new transactions to the inbox.
- * Returns { added, known, skipped, error }.
+ * With { month: '2026-10' } only that month's transactions are taken; new ones
+ * from other months are counted in otherMonths ({ '2026-09': 3 }) and left out.
+ * Returns { added, known, skipped, otherMonths, error }.
  */
-export function importCsv(text) {
+export function importCsv(text, { month = null } = {}) {
   const result = parseRevolut(text);
-  if (result.error) return { added: 0, known: 0, skipped: 0, otherCurrency: {}, error: result.error };
+  if (result.error) return { added: 0, known: 0, skipped: 0, otherCurrency: {}, otherMonths: {}, error: result.error };
   let added = 0;
   let known = 0;
+  const otherMonths = {};
   for (const tx of result.transactions) {
     if (inbox[tx.key] || state.allRecords()[expenseId(tx.key)]) {
       known++;
+      continue;
+    }
+    const txMonth = tx.date.slice(0, 7);
+    if (month && txMonth !== month) {
+      otherMonths[txMonth] = (otherMonths[txMonth] || 0) + 1;
       continue;
     }
     inbox[tx.key] = { key: tx.key, date: tx.date, time: tx.time, description: tx.description, amount: tx.amount, category: tx.category || '' };
@@ -90,7 +100,17 @@ export function importCsv(text) {
   }
   prune();
   save(); // an import with nothing new also counts as "checked and sorted"
-  return { added, known, skipped: result.skipped, reasons: result.reasons || {}, otherCurrency: result.otherCurrency || {}, error: null };
+  return { added, known, skipped: result.skipped, reasons: result.reasons || {}, otherCurrency: result.otherCurrency || {}, otherMonths, error: null };
+}
+
+/** Months (other than the given one) that still have purchases to sort: { '2026-09': 2 }. */
+export function toSortElsewhere(month) {
+  const out = {};
+  for (const tx of toSort()) {
+    const m = tx.date.slice(0, 7);
+    if (m !== month) out[m] = (out[m] || 0) + 1;
+  }
+  return out;
 }
 
 /** Mark one transaction as 'common' or 'personal' (or back to 'new'). */
@@ -116,9 +136,9 @@ export function choose(key, choice, { remember = true } = {}) {
 }
 
 /** Apply the remembered choice to every unsorted transaction that has one. Returns how many. */
-export function acceptSuggestions() {
+export function acceptSuggestions(month = null) {
   let n = 0;
-  for (const tx of toSort()) {
+  for (const tx of toSort(month)) {
     const s = suggestionFor(tx);
     if (s) {
       choose(tx.key, s, { remember: false });
@@ -148,9 +168,9 @@ export function unsettle(keys) {
 }
 
 /** Purchases sorted as personal or cleared as already settled (still known in detail), newest first. */
-export function sortedAway() {
+export function sortedAway(month = null) {
   return Object.values(inbox)
-    .filter((tx) => tx.description && ['personal', 'settled'].includes(statusOf(tx)))
+    .filter((tx) => tx.description && ['personal', 'settled'].includes(statusOf(tx)) && inMonth(month)(tx))
     .sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
 }
 

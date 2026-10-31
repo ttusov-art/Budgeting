@@ -34,7 +34,7 @@ function startView() {
 }
 
 function ctx() {
-  return { month: currentMonth, todayKey: dateKeyOf(new Date()) };
+  return { month: currentMonth, todayKey: dateKeyOf(new Date()), setMonth };
 }
 
 // ---------- rendering ----------
@@ -58,7 +58,7 @@ function render() {
     else a.removeAttribute('aria-current');
   });
   // Month navigation means nothing on the Settings screen.
-  document.querySelector('.month-nav').style.visibility = ['settings', 'buys'].includes(view) ? 'hidden' : 'visible';
+  document.querySelector('.month-nav').style.visibility = view === 'settings' ? 'hidden' : 'visible';
 
   // Badge on the Purchases tab: how many imported purchases still need sorting.
   // Or "!" when sorting is overdue (last full sort more than a week ago).
@@ -313,7 +313,7 @@ function importShared(texts) {
     toast('No statement file arrived. Choose CSV as the format in Revolut and share the file.');
     return;
   }
-  texts.forEach((t) => purchasesView.importText(t));
+  texts.forEach((t) => purchasesView.importText(t, ctx()));
 }
 
 takeSharedStatements();

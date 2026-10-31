@@ -37,7 +37,7 @@ export function payerOptions() {
 
 let toastTimer = null;
 /** Short message at the bottom; optional action button (e.g. Undo). */
-export function toast(message, action) {
+export function toast(message, action, ms = null) {
   const el = document.getElementById('toast');
   el.innerHTML = `<span>${esc(message)}</span>`;
   if (action) {
@@ -51,5 +51,5 @@ export function toast(message, action) {
   }
   el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), action ? 5000 : 2500);
+  toastTimer = setTimeout(() => el.classList.remove('show'), ms || (action ? 5000 : 2500));
 }

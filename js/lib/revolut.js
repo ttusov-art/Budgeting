@@ -243,7 +243,11 @@ export function parseRevolut(text, { currency: wanted = 'EUR' } = {}) {
       const currency = (get(row, 'currency') || currencyInText(amountText) || sectionCurrency || wanted).toUpperCase();
 
       const outgoing = amount !== null && amount < 0;
-      const finished = !state || ['COMPLETED', 'ABGESCHLOSSEN', 'ERLEDIGT'].includes(state);
+      // Pending card payments: the plain export says so in "State"; the custom statement
+      // has no State column but leaves the balance empty until the payment goes through.
+      // They're left out now and picked up by a later import, once completed.
+      const noBalanceYet = col.balance >= 0 && !get(row, 'balance');
+      const finished = (!state || ['COMPLETED', 'ABGESCHLOSSEN', 'ERLEDIGT'].includes(state)) && !noBalanceYet;
       const mainAccount = !product || ['current', 'aktuell', 'girokonto', 'konto'].includes(product);
       const exchange = ['EXCHANGE', 'UMTAUSCH', 'WECHSEL'].includes(type) || /^exchanged to\b/i.test(description);
       if (!outgoing || !finished || !mainAccount || exchange) {

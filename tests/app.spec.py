@@ -589,6 +589,25 @@ def run(p):
     for name in ["REWE.de", "Zenvital", "Bäckerei Musterbrot"]:
         tonis.get_by_role("button", name=f"{name}: personal").click()
 
+    # A statement across the month change: only the chosen month is imported
+    check("month stays visible on Purchases", tonis.locator(".month-nav").is_visible())
+    tonis.set_input_files("#csv-file", str(FIX / "revolut-month-end.csv"))
+    expect(tonis.locator("#toast")).to_contain_text("1 new purchase in October 2026", timeout=3000)
+    check("other month's purchases are left out and named", "2 from September 2026 left out" in tonis.locator("#toast").inner_text())
+    check("only October's purchase waits in To sort", tonis.get_by_test_id("sort-count").inner_text() == "1")
+    tonis.locator("#toast button", has_text="Import September").click()
+    expect(tonis.locator("#month-title")).to_have_text("September 2026", timeout=2000)
+    expect(tonis.get_by_test_id("sort-count")).to_have_text("2", timeout=3000)
+    check("toast button imports the left-out month (a purchase paid 30 Sep, completed 2 Oct, counts in September)",
+          tonis.locator(".sort-row", has_text="Beispiel Drogerie").count() == 1)
+    check("the other month's waiting purchases are pointed out", "1 in October 2026" in tonis.get_by_test_id("sort-elsewhere").inner_text())
+    tonis.get_by_role("button", name="Musterladen Nord: personal").click()
+    tonis.get_by_role("button", name="Beispiel Drogerie: personal").click()
+    tonis.get_by_test_id("sort-elsewhere").get_by_role("button").click()
+    expect(tonis.locator("#month-title")).to_have_text("October 2026", timeout=2000)
+    tonis.get_by_role("button", name="Testmarkt Süd: personal").click()
+    check("all months sorted, badge hidden", tonis.locator("#buys-badge").is_hidden())
+
     # Wallet counts unwithdrawn common purchases as spent already: 800 − 700 balance = 100, + 49,40
     tonis.locator('.tabs [data-view="wallet"]').click()
     check("wallet: common purchases count as spent before withdrawal", "149,40" in tonis.get_by_test_id("spent").inner_text())

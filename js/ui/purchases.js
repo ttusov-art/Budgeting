@@ -4,18 +4,24 @@
 import * as state from '../state.js';
 import * as purchases from '../purchases.js';
 import { formatCents } from '../lib/money.js';
-import { dateKeyOf, shortDateLabel } from '../lib/months.js';
+import { dateKeyOf, shortDateLabel, monthLabel, daysInMonth } from '../lib/months.js';
 import { esc, toast } from './dom.js';
 import { openForm } from './form.js';
 
-export function render(main) {
+// The month chosen at the top (and how to change it), for imports started from this screen.
+let view = { month: null, setMonth: null };
+
+export function render(main, ctx) {
+  view = ctx;
+  const month = ctx.month;
   const s = state.getSettings();
   const me = state.getDevice().me;
   const other = me === 't' ? 'k' : 't';
   const mine = state.pendingExpenses(me);
   const theirs = state.pendingExpenses(other);
   const myTotal = sum(mine);
-  const queue = purchases.toSort();
+  const queue = purchases.toSort(month);
+  const elsewhere = Object.entries(purchases.toSortElsewhere(month)).sort(([a], [b]) => a.localeCompare(b));
   const suggested = queue.filter((tx) => purchases.suggestionFor(tx)).length;
   const settlements = state.getSettlements().slice(0, 8);
 
@@ -32,6 +38,9 @@ export function render(main) {
           <label class="btn small-btn" for="csv-file" title="Import Revolut statement (I)">Import CSV <kbd>I</kbd></label>
           <input id="csv-file" type="file" accept=".csv,text/csv,text/comma-separated-values,application/vnd.ms-excel" hidden>
         </div>
+        <p class="muted small" style="margin:0 0 8px">Only ${esc(monthLabel(month))} purchases are imported and shown here.</p>
+        ${elsewhere.length ? `<p class="small" style="margin:0 0 8px" data-testid="sort-elsewhere">Also to sort: ${elsewhere.map(([m, n]) =>
+          `<button class="link-btn" data-goto-month="${esc(m)}">${n} in ${esc(monthLabel(m))}</button>`).join(', ')}</p>` : ''}
         ${suggested ? `<button class="btn" style="width:100%;margin-bottom:8px" data-act="accept">Accept ${suggested} suggestion${suggested > 1 ? 's' : ''}</button>` : ''}
         ${queue.length ? `<button class="btn small-btn" style="margin-bottom:8px" data-act="settle-before" title="Clear purchases that were balanced out some other way">Already settled before…</button>` : ''}
         ${queue.length ? `<ul class="list">${queue.map((tx) => sortRow(tx)).join('')}</ul>` : `
@@ -73,7 +82,7 @@ ${withdrawCard}
 
       <button class="btn" data-act="manual">+ Add common purchase by hand (cash)</button>
 
-      ${sortedAwayCard()}
+      ${sortedAwayCard(month)}
 
       <section class="card">
         <h2>Recent withdrawals</h2>
@@ -89,12 +98,15 @@ ${withdrawCard}
 
   main.querySelector('#csv-file').addEventListener('change', (e) => importFile(e.target));
   main.querySelector('[data-act="accept"]')?.addEventListener('click', () => {
-    const n = purchases.acceptSuggestions();
+    const n = purchases.acceptSuggestions(month);
     toast(`${n} sorted from earlier choices`);
   });
   main.querySelector('[data-act="settle"]')?.addEventListener('click', () => settle(me));
   main.querySelector('[data-act="settle-before"]')?.addEventListener('click', () => settleBefore(queue));
   main.querySelector('[data-act="manual"]').addEventListener('click', addManual);
+  main.querySelectorAll('[data-goto-month]').forEach((btn) => {
+    btn.addEventListener('click', () => ctx.setMonth(btn.dataset.gotoMonth));
+  });
   main.querySelectorAll('[data-choose]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const tx = queue.find((t) => t.key === btn.dataset.choose);
@@ -109,7 +121,7 @@ ${withdrawCard}
     });
   });
   main.querySelector('[data-act="back-all"]')?.addEventListener('click', () => {
-    const keys = purchases.sortedAway().map((tx) => tx.key);
+    const keys = purchases.sortedAway(month).map((tx) => tx.key);
     if (!confirm(`Put all ${keys.length} back into "To sort"?`)) return;
     purchases.backToSort(keys);
     toast(`${keys.length} purchases back in "To sort"`);
@@ -141,8 +153,8 @@ function sortRow(tx) {
 }
 
 /** Purchases sorted as personal or cleared as settled, with a way back. Collapsed by default. */
-function sortedAwayCard() {
-  const list = purchases.sortedAway();
+function sortedAwayCard(month) {
+  const list = purchases.sortedAway(month);
   if (!list.length) return '';
   const shown = list.slice(0, 100);
   return `<details class="card sorted-away" data-testid="sorted-away">
@@ -176,26 +188,54 @@ async function importFile(input) {
   const file = input.files[0];
   input.value = '';
   if (!file) return;
-  importText(await file.text());
+  importText(await file.text(), view);
 }
 
-/** Import a statement's text (from the file picker or from Android's share sheet) and say what happened. */
-export function importText(text) {
-  const r = purchases.importCsv(text);
+/**
+ * Import a statement's text (from the file picker or Android's share sheet) into
+ * the chosen month and say what happened. Purchases from other months are left
+ * out, with a button to import the most recent of those months as well.
+ */
+export function importText(text, ctx) {
+  const r = purchases.importCsv(text, { month: ctx.month });
   if (r.error) {
     toast(r.error);
     return;
   }
-  const parts = [`${r.added} new purchase${r.added === 1 ? '' : 's'}`];
+  const parts = [`${r.added} new purchase${r.added === 1 ? '' : 's'} in ${monthLabel(ctx.month)}`];
   if (r.known) parts.push(`${r.known} already imported`);
+  const months = Object.keys(r.otherMonths || {}).sort();
+  if (months.length) parts.push(`${months.map((m) => `${r.otherMonths[m]} from ${monthLabel(m)}`).join(', ')} left out`);
   const other = Object.entries(r.otherCurrency || {}).map(([cur, n]) => `${n} in ${cur}`);
   if (other.length) parts.push(`${other.join(', ')} left out (budget is in EUR)`);
   const why = r.reasons || {};
   if (why.unreadable) parts.push(`${why.unreadable} with an amount the app couldn't read`);
-  if (r.added === 0 && !r.known && !other.length && !why.unreadable) {
+  if (why.unfinished) parts.push(`${why.unfinished} still pending`);
+  if (r.added === 0 && !r.known && !months.length && !other.length && !why.unreadable && !why.unfinished) {
     parts.push(`no outgoing payments found (${why.incoming || 0} incoming, ${why.exchange || 0} exchanges)`);
   }
-  toast(parts.join(' · '));
+  // Offer the month next to the chosen one first (usually the end of last month).
+  const next = months.length ? months.reduce((a, b) => (Math.abs(monthGap(a, ctx.month)) <= Math.abs(monthGap(b, ctx.month)) ? a : b)) : null;
+  toast(parts.join(' · '), next && ctx.setMonth ? {
+    label: `Import ${monthLabel(next).split(' ')[0]}`,
+    run: () => {
+      ctx.setMonth(next);
+      importText(text, { ...ctx, month: next });
+    },
+  } : undefined, 8000);
+}
+
+/** Today, or the last day of the chosen month when looking at an earlier month. */
+function defaultDate() {
+  const today = dateKeyOf(new Date());
+  if (!view.month || today.startsWith(view.month)) return today;
+  return view.month < today ? `${view.month}-${String(daysInMonth(view.month)).padStart(2, '0')}` : `${view.month}-01`;
+}
+
+function monthGap(a, b) {
+  const [ya, ma] = a.split('-').map(Number);
+  const [yb, mb] = b.split('-').map(Number);
+  return (ya - yb) * 12 + (ma - mb);
 }
 
 async function settle(me) {
@@ -234,7 +274,7 @@ async function addManual() {
     fields: [
       { name: 'amount', label: 'Amount', type: 'money', required: true, autofocus: true },
       { name: 'description', label: 'What / where', type: 'text', required: true, placeholder: 'Market, cash' },
-      { name: 'date', label: 'Date', type: 'date', required: true, value: dateKeyOf(new Date()) },
+      { name: 'date', label: 'Date', type: 'date', required: true, value: defaultDate() },
     ],
   });
   if (!values) return;

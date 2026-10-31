@@ -1,0 +1,4 @@
+Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance
+CARD_PAYMENT,Current,2026-09-29 10:00:00,2026-09-30 10:00:00,Musterladen Nord,-12.00,0.00,EUR,COMPLETED,500.00
+CARD_PAYMENT,Current,2026-09-30 21:15:00,2026-10-02 08:00:00,Beispiel Drogerie,-8.50,0.00,EUR,COMPLETED,491.50
+CARD_PAYMENT,Current,2026-10-01 09:30:00,2026-10-02 08:00:00,Testmarkt Süd,-20.00,0.00,EUR,COMPLETED,471.50

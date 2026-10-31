@@ -346,3 +346,14 @@ test('unlocks only when both asked to unlock', () => {
   assert.equal(lockDecision({ locked: true, votes: { t: { want: 'unlock' }, k: { want: 'unlock' } }, currentFp: fp }).action, 'unlock');
   assert.equal(lockDecision({ locked: true, votes: { t: null, k: null }, currentFp: fp }).status.t, 'waiting');
 });
+
+test('custom statement: a payment without a balance yet (pending) is left out until it completes', () => {
+  const head = 'Date,Description,Category,Money out,Money in,Balance\n';
+  const pending = parseRevolut(head + '"Oct 31, 2026",Testmarkt,Groceries,€12.00,,\n"Oct 30, 2026",Musterladen,Groceries,€5.00,,"€100.00"\n');
+  assert.equal(pending.transactions.length, 1);
+  assert.equal(pending.reasons.unfinished, 1);
+  // A week later the same payment has gone through and carries a balance: it is imported, dated 31 Oct.
+  const done = parseRevolut(head + '"Oct 31, 2026",Testmarkt,Groceries,€12.00,,"€88.00"\n');
+  assert.equal(done.transactions.length, 1);
+  assert.equal(done.transactions[0].date, '2026-10-31');
+});
