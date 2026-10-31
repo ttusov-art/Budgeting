@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-31 zk
+- A tiny vibration (8 ms) when tapping buttons on Android. Can be switched off per phone in Settings → This phone belongs to.
+
 ## 2026-10-31 zj
 - Buttons respond right after a swipe: a sideways swipe no longer also scrolls the page (that leftover glide swallowed the next tap), a new screen starts at the top standing still, and buttons never wait for a possible double tap.
 

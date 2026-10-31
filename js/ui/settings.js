@@ -7,6 +7,7 @@ import { buildBackup, parseBackup } from '../storage.js';
 import { APP_VERSION } from '../version.js';
 import { esc, toast } from './dom.js';
 import { SHORTCUTS } from './shortcuts.js';
+import { canVibrate } from './haptics.js';
 
 export function render(main) {
   const s = state.getSettings();
@@ -33,6 +34,7 @@ export function render(main) {
             <label for="me-${p}">${esc(s.names[p])}</label>`).join('')}
         </div>
         <p class="muted small" style="margin:8px 0 0">Used as the default "paid from" and to show who entered what.</p>
+        ${canVibrate() ? `<label class="check-field" style="margin-top:12px"><input type="checkbox" class="check" id="vibrate" ${d.vibrate === false ? '' : 'checked'}> Small vibration when tapping buttons</label>` : ''}
       </section>
 
       <section class="card">
@@ -131,6 +133,10 @@ export function render(main) {
   main.querySelector('[data-act="sync"]')?.addEventListener('click', () => sync.syncNow());
 
   main.querySelector('[data-act="export"]').addEventListener('click', downloadBackup);
+  main.querySelector('#vibrate')?.addEventListener('change', (e) => {
+    state.setDevice({ vibrate: e.target.checked });
+    toast(e.target.checked ? 'Vibration on' : 'Vibration off');
+  });
 
   main.querySelector('#import-file').addEventListener('change', async (e) => {
     const file = e.target.files[0];

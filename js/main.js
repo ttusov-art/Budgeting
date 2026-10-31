@@ -15,6 +15,7 @@ import * as settingsView from './ui/settings.js';
 import * as purchasesView from './ui/purchases.js';
 import { toSort, sortStatus } from './purchases.js';
 import { installSwipe } from './ui/swipe.js';
+import { installHaptics } from './ui/haptics.js';
 
 // Order = tab order = swipe order.
 // Order = the monthly routine = tab order = swipe order = keys 1–5.
@@ -285,6 +286,7 @@ if (!VIEWS[location.hash.replace('#', '')]) history.replaceState(null, '', `#${s
 
 sync.onStatus(renderSyncChip);
 installShortcuts(actions);
+installHaptics();
 render();
 renderSyncChip(sync.getStatus());
 sync.startAutoSync();

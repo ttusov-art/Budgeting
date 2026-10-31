@@ -751,6 +751,19 @@ def run(p):
     solo.locator("[data-expense]").first.click()
     solo.locator("#form-dialog").get_by_role("button", name="Not common after all").click()
     check("a common one can go back too (Not common after all)", solo.get_by_test_id("sort-count").inner_text() == "3")
+
+    # Tiny vibration on taps (switchable per phone)
+    solo.evaluate("() => { window.__buzz = []; navigator.vibrate = (ms) => { window.__buzz.push(ms); return true; }; }")
+    solo.locator('.tabs [data-view="wallet"]').click()
+    solo.locator("#next-month").click()
+    buzz = solo.evaluate("window.__buzz")
+    check(f"tapping buttons gives a tiny vibration (8 ms each): {buzz}", buzz == [8, 8])
+    solo.locator('.tabs [data-view="settings"]').click()
+    solo.locator("#vibrate").uncheck()
+    solo.evaluate("window.__buzz = []")
+    solo.locator('.tabs [data-view="wallet"]').click()
+    solo.locator("#prev-month").click()
+    check("vibration can be switched off in Settings", solo.evaluate("window.__buzz") == [])
     ctx_s.close()
 
     # Wrong key is refused
