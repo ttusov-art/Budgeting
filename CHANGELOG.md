@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-31 zc
+- Purchases help: back to the Sheets route for Revolut statements. Revolut only offers "Open with", and Chrome on Android doesn't list web apps there yet; sharing to Budget still works from apps that offer Share.
+
 ## 2026-10-31 zb
 - Purchases: the month is shown at the top again. Importing a statement takes only the chosen month's purchases; the others are named in the message, with a button to import that month too. "Also to sort: 1 in October" points to purchases waiting in another month.
 - Pending card payments (no balance yet in the custom statement) are left out and picked up by a later import once they go through, under the date they were paid.

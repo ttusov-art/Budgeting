@@ -48,11 +48,12 @@ export function render(main, ctx) {
           <details class="howto"><summary>How to export from Revolut</summary>
             <ol class="small">
               <li>In the Revolut app, on the home screen: <b>… More</b> → <b>Statement</b>.</li>
-              <li>Choose <b>Custom</b> at the top, set the period (the last week or two) and the format to <b>CSV</b>, then <b>Generate</b>.</li>
-              <li>In the list of apps, pick <b>Budget</b> (Household Budget). The purchases land here, ready to sort.</li>
+              <li>Choose <b>Custom</b> at the top, set the period and the format to <b>CSV</b>, then <b>Generate</b>.</li>
+              <li>Open it with <b>Sheets</b>, then <b>⋮</b> → <b>Make a copy</b> → to the device → <b>Save</b>.</li>
+              <li>Tap <b>Import CSV</b> here and pick the file (it's at the top of Recent).</li>
             </ol>
-            <p class="small muted">Budget not in the list? Remove the app's home-screen icon and add it again from Chrome
-              (Android only learns about this option when the icon is installed). Or save the file and tap <b>Import CSV</b>.</p>
+            <p class="small muted">If an app offers <b>Share</b> for the file, you can share it straight to <b>Budget</b> instead.
+              (Android doesn't list web apps under "Open with" yet.)</p>
             <p class="small muted">Overlapping periods are fine: already-imported transactions are skipped.
               Only the EUR account is imported; other currencies are left out.</p>
           </details>`}
