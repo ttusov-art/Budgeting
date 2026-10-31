@@ -2,6 +2,7 @@
 
 import * as state from '../state.js';
 import * as sync from '../sync.js';
+import { reloadLocal } from '../purchases.js';
 import { buildBackup, parseBackup } from '../storage.js';
 import { APP_VERSION } from '../version.js';
 import { esc, toast } from './dom.js';
@@ -75,8 +76,9 @@ export function render(main) {
       <section class="card prose">
         <h2>Privacy</h2>
         <ul>
-          <li><b>On this phone:</b> all budget data is kept in the browser's storage, so the app works offline.</li>
-          <li><b>Sent where:</b> only to your own Google Sheet, through your own Apps Script, when sync is set up. Nothing goes to anyone else. No analytics, no tracking, no fonts or libraries loaded from other sites.</li>
+          <li><b>On this phone:</b> all budget data is kept in the browser's storage, so the app works offline.
+            Imported bank transactions and purchases you mark as personal stay <b>only on this phone</b>.</li>
+          <li><b>Sent where:</b> common purchases and withdrawals, and the budget data, only to your own Google Sheet, through your own Apps Script, when sync is set up. Nothing goes to anyone else. No analytics, no tracking, no fonts or libraries loaded from other sites.</li>
           <li><b>Kept how long:</b> until you delete it. Deleted entries stay in the Sheet as "deleted" rows so the deletion reaches the other phone; you can remove those rows in the Sheet any time.</li>
           <li><b>Delete:</b> "Forget this phone" below removes everything from this phone. To delete everything, also delete the Google Sheet.</li>
         </ul>
@@ -148,6 +150,7 @@ export function render(main) {
       : 'Remove all budget data and the sync key from this phone? The Google Sheet is not touched.';
     if (confirm(msg)) {
       state.resetDevice();
+      reloadLocal();
       toast('This phone is now empty');
     }
   });

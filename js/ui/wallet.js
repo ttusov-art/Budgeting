@@ -4,7 +4,7 @@
 // with the agreed wallet budget only; carry-over and top-ups are extra.
 
 import * as state from '../state.js';
-import { spentSoFar, walletPace, checkinSpent } from '../lib/budget.js';
+import { walletSpent, walletPace, checkinSpent } from '../lib/budget.js';
 import { formatCents, formatCentsWhole } from '../lib/money.js';
 import { dateKeyOf, shortDateLabel, monthLabel, daysInMonth } from '../lib/months.js';
 import { APP_VERSION } from '../version.js';
@@ -17,7 +17,12 @@ export function render(main, ctx) {
   const budget = m.walletBudget || 0;
   const checkins = state.checkinsFor(month);
   const topups = state.topupsFor(month);
-  const { spent, lastCheckin } = spentSoFar(checkins, startBalance, topups);
+  const expenses = state.getExpenses();
+  const settlements = state.getSettlements();
+  const { spent, lastCheckin, pending } = walletSpent({ checkins, startBalance, topups, expenses, settlements, monthKey: month });
+  const monthSettlements = settlements.filter((st) => st.month === month);
+  // Something to compare with the plan: a check-in, or common purchases sorted this month.
+  const hasData = Boolean(lastCheckin) || expenses.some((e) => e.month === month);
   const versionTag = `<span class="version-tag" data-testid="version">v${esc(APP_VERSION)}</span>`;
 
   if (!budget) {
@@ -30,7 +35,7 @@ export function render(main, ctx) {
           Next month you can copy it.</p>
           <a class="btn primary" href="#month">Set up the month</a>
         </section>
-        ${entriesCard(checkins, topups, startBalance)}
+        ${entriesCard(checkins, topups, startBalance, monthSettlements)}
       </div>`;
     bindEntries(main);
     return;
@@ -43,10 +48,10 @@ export function render(main, ctx) {
 
   let paceText;
   if (p.elapsed === 0) paceText = 'Month has not started yet';
-  else if (!lastCheckin) paceText = 'No check-in yet this month';
+  else if (!hasData) paceText = 'No check-in yet this month';
   else if (p.aheadBy >= 0) paceText = `${formatCents(p.aheadBy)} under plan`;
   else paceText = `${formatCents(-p.aheadBy)} over plan`;
-  const pacePct = p.elapsed > 0 && lastCheckin
+  const pacePct = p.elapsed > 0 && hasData
     ? `${(p.pace * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 })} % of the planned pace so far` : '';
 
   // What the account holds beyond the budget: carry-over and top-ups.
@@ -54,6 +59,8 @@ export function render(main, ctx) {
   const extras = [];
   if (carry.amount) extras.push(`${formatCents(carry.amount)} carried over`);
   if (topupTotal) extras.push(`${formatCents(topupTotal)} topped up`);
+  const pendingLine = pending
+    ? `<a class="pending-line" href="#buys" data-testid="pending-line">${formatCents(pending)} of common purchases not withdrawn yet (already counted as spent) →</a>` : '';
 
   const balanceLine = lastCheckin && lastCheckin.balance != null
     ? `Revolut balance ${formatCents(lastCheckin.balance)} on ${shortDateLabel(lastCheckin.date)}`
@@ -74,28 +81,29 @@ export function render(main, ctx) {
           <div class="meter-mark" style="left:calc(${markPct}% - 1px)" title="Plan for today"></div>
         </div>
         <div class="meter-legend"><span>Day ${p.elapsed} of ${p.days}</span><span>▮ plan for today: ${formatCentsWhole(p.expected)}</span></div>
-        <div class="pace-pill ${lastCheckin ? level : ''}" data-testid="pace"><span>${esc(paceText)}</span>${pacePct ? `<span class="pace-sub">${esc(pacePct)}</span>` : ''}</div>
+        <div class="pace-pill ${hasData ? level : ''}" data-testid="pace"><span>${esc(paceText)}</span>${pacePct ? `<span class="pace-sub">${esc(pacePct)}</span>` : ''}</div>
       </section>
 
       <div class="btn-row grow">
         <button class="btn primary" data-act="checkin" title="Check in the Revolut balance (C)">Check in <kbd>C</kbd></button>
         <button class="btn" data-act="topup" title="Add money (A)">Add money <kbd>A</kbd></button>
       </div>
+      ${pendingLine}
       <p class="muted small" style="margin-top:8px" data-testid="balance-line">${esc(balanceLine)}${extras.length ? ` · includes ${esc(extras.join(' + '))}` : ''}</p>
 
       <section class="card">
         <h2>Budget vs. actual</h2>
         <div class="stats">
           ${stat('Daily budget', formatCentsWhole(p.dailyBudget))}
-          ${stat('Actual per day', lastCheckin ? formatCentsWhole(p.actualDaily) : '—')}
+          ${stat('Actual per day', hasData ? formatCentsWhole(p.actualDaily) : '—')}
           ${stat('Can spend per day', p.daysLeft > 0 ? formatCentsWhole(p.perDayLeft) : '—')}
           ${stat('Weekly budget', formatCentsWhole(p.weeklyBudget))}
-          ${stat('Actual per week', lastCheckin ? formatCentsWhole(p.actualWeekly) : '—')}
+          ${stat('Actual per week', hasData ? formatCentsWhole(p.actualWeekly) : '—')}
           ${stat('Days left', String(p.daysLeft))}
         </div>
       </section>
 
-      ${entriesCard(checkins, topups, startBalance)}
+      ${entriesCard(checkins, topups, startBalance, monthSettlements)}
     </div>`;
 
   main.querySelector('[data-act="checkin"]').addEventListener('click', () => checkIn(ctx));
@@ -107,10 +115,11 @@ function stat(k, v) {
   return `<div class="stat"><div class="k">${esc(k)}</div><div class="v num">${esc(v)}</div></div>`;
 }
 
-function entriesCard(checkins, topups, startBalance) {
+function entriesCard(checkins, topups, startBalance, settlements = []) {
   const entries = [
     ...checkins.map((c) => ({ ...c, kind: 'checkin' })),
     ...topups.map((t) => ({ ...t, kind: 'topup' })),
+    ...settlements.map((st) => ({ ...st, kind: 'settlement' })),
   ].sort((a, b) => (b.date + (b.createdAt || '')).localeCompare(a.date + (a.createdAt || '')));
 
   const s = state.getSettings();
@@ -121,7 +130,12 @@ function entriesCard(checkins, topups, startBalance) {
     let badge;
     let title;
     let amount;
-    if (e.kind === 'topup') {
+    if (e.kind === 'settlement') {
+      badge = '−';
+      title = `${esc(s.names[e.person] || '?')} withdrew for purchases`;
+      amount = `−${formatCents(e.amount)}`;
+      details.push(`${e.count || 0} common purchase${e.count === 1 ? '' : 's'}`);
+    } else if (e.kind === 'topup') {
       badge = '+';
       title = `${esc(s.names[e.person] || '?')} added money`;
       amount = `+${formatCents(e.amount)}`;
@@ -154,7 +168,8 @@ function bindEntries(main) {
   main.querySelectorAll('[data-edit]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const rec = state.allRecords()[btn.dataset.edit];
-      if (rec.type === 'topup') addTopup(null, rec);
+      if (rec.type === 'settlement') location.hash = 'buys';
+      else if (rec.type === 'topup') addTopup(null, rec);
       else checkIn(null, rec);
     });
   });

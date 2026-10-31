@@ -7,6 +7,8 @@ import { parseCents, formatCents, centsToInput } from '../js/lib/money.js';
 import { addMonths, monthsBetween, daysInMonth, daysElapsed } from '../js/lib/months.js';
 import { spreadSharesForMonth, monthPlan, spentSoFar, walletPace, walletStartBalance, lastBalance } from '../js/lib/budget.js';
 import { mergeRecords } from '../js/lib/merge.js';
+import { parseCsv, parseRevolut, merchantKey, parseDateTime } from '../js/lib/revolut.js';
+import { walletSpent } from '../js/lib/budget.js';
 
 test('parseCents understands German and English number styles', () => {
   assert.equal(parseCents('12,30'), 1230);
@@ -138,4 +140,97 @@ test('merge: newer wins, older ignored', () => {
   assert.equal(records.a.v, 1);
   assert.equal(records.b.v, 5);
   assert.deepEqual(changedIds, ['b']);
+});
+
+// ---------- Revolut import (made-up data) ----------
+
+const REVOLUT_CSV = [
+  'Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance',
+  'CARD_PAYMENT,Current,2026-10-26 09:12:01,2026-10-27 10:00:00,Lidl 4521 Berlin,-23.45,0.00,EUR,COMPLETED,812.10',
+  'CARD_PAYMENT,Current,2026-10-26 18:40:00,2026-10-27 10:00:00,"Bäckerei Schmidt, Mitte",-4.80,0.00,EUR,COMPLETED,807.30',
+  'TOPUP,Current,2026-10-27 08:00:00,2026-10-27 08:00:01,Salary,2500.00,0.00,EUR,COMPLETED,3307.30',
+  'EXCHANGE,Current,2026-10-27 09:00:00,2026-10-27 09:00:01,Exchanged to SEK,-50.00,0.00,EUR,COMPLETED,3257.30',
+  'CARD_PAYMENT,Current,2026-10-28 12:00:00,,Rewe Markt GmbH,-31.20,0.00,EUR,PENDING,',
+  'TRANSFER,Savings,2026-10-28 13:00:00,2026-10-28 13:00:01,To pocket Common,-100.00,0.00,EUR,COMPLETED,0',
+  'CARD_PAYMENT,Current,2026-10-29 19:05:00,2026-10-30 10:00:00,Foreign shop,-10.00,0.35,EUR,COMPLETED,3247.30',
+].join('\n');
+
+test('Revolut CSV: keeps finished outgoing payments of the main account only', () => {
+  const r = parseRevolut(REVOLUT_CSV);
+  assert.equal(r.error, null);
+  assert.deepEqual(r.transactions.map((t) => t.description), ['Lidl 4521 Berlin', 'Bäckerei Schmidt, Mitte', 'Foreign shop']);
+  assert.deepEqual(r.transactions.map((t) => t.amount), [2345, 480, 1035]); // fee included
+  assert.equal(r.transactions[0].date, '2026-10-26');
+  assert.equal(r.skipped, 4);
+});
+
+test('Revolut CSV: the same transaction always gets the same key (no double import)', () => {
+  const a = parseRevolut(REVOLUT_CSV).transactions.map((t) => t.key);
+  const b = parseRevolut(REVOLUT_CSV).transactions.map((t) => t.key);
+  assert.deepEqual(a, b);
+  assert.equal(new Set(a).size, a.length);
+});
+
+test('Revolut CSV: German headers and semicolons work too', () => {
+  const de = 'Typ;Produkt;Startdatum;Abschlussdatum;Beschreibung;Betrag;Gebühr;Währung;Status;Saldo\n'
+    + 'CARD_PAYMENT;Aktuell;28.10.2026 10:00;28.10.2026 11:00;Edeka;-12,30;0,00;EUR;ABGESCHLOSSEN;100,00';
+  const r = parseRevolut(de);
+  assert.equal(r.error, null);
+  assert.equal(r.transactions[0].amount, 1230);
+  assert.equal(r.transactions[0].date, '2026-10-28');
+});
+
+test('Revolut CSV: a wrong file gives a clear error', () => {
+  assert.match(parseRevolut('name,age\nTom,3').error, /doesn't look like a Revolut statement/);
+});
+
+test('CSV parsing handles quotes', () => {
+  assert.deepEqual(parseCsv('a,b\n"x, y","say ""hi"""'), [['a', 'b'], ['x, y', 'say "hi"']]);
+  assert.deepEqual(parseDateTime('2026-10-28 14:23:11'), { date: '2026-10-28', time: '14:23:11' });
+});
+
+test('merchant key ignores store numbers and city noise', () => {
+  assert.equal(merchantKey('LIDL 4521 Berlin'), 'lidl berlin');
+  assert.equal(merchantKey('Lidl 1100 Berlin'), 'lidl berlin');
+  assert.equal(merchantKey('Rewe Markt GmbH*123'), 'rewe markt gmbh');
+});
+
+// ---------- spending with common purchases ----------
+
+const ck = (date, createdAt, balance) => ({ date, createdAt, balance });
+
+test('common purchases count as spent before they are withdrawn', () => {
+  const r = walletSpent({
+    checkins: [ck('2026-10-20', '2026-10-20T10:00:00Z', 70000)], startBalance: 93000, monthKey: '2026-10',
+    expenses: [{ id: 'e1', month: '2026-10', amount: 5000, settlementId: null }],
+  });
+  assert.equal(r.spent, 23000 + 5000);
+  assert.equal(r.pending, 5000);
+});
+
+test('a withdrawal before the check-in is already in the balance (no double count)', () => {
+  const settlements = [{ id: 's1', month: '2026-10', date: '2026-10-21', createdAt: '2026-10-21T09:00:00Z', parts: { '2026-10': 5000 } }];
+  const expenses = [{ id: 'e1', month: '2026-10', amount: 5000, settlementId: 's1' }];
+  // Balance dropped by the 50 € withdrawal: 70000 → 65000
+  const r = walletSpent({ checkins: [ck('2026-10-22', '2026-10-22T10:00:00Z', 65000)], startBalance: 93000, expenses, settlements, monthKey: '2026-10' });
+  assert.equal(r.spent, 28000);
+  assert.equal(r.pending, 0);
+});
+
+test('a withdrawal after the check-in still counts the purchase', () => {
+  const settlements = [{ id: 's1', month: '2026-10', date: '2026-10-25', createdAt: '2026-10-25T09:00:00Z', parts: { '2026-10': 5000 } }];
+  const expenses = [{ id: 'e1', month: '2026-10', amount: 5000, settlementId: 's1' }];
+  const r = walletSpent({ checkins: [ck('2026-10-22', '2026-10-22T10:00:00Z', 70000)], startBalance: 93000, expenses, settlements, monthKey: '2026-10' });
+  assert.equal(r.spent, 28000);
+});
+
+test('withdrawing in November for October purchases does not count as November spending', () => {
+  const settlements = [{ id: 's1', month: '2026-11', date: '2026-11-02', createdAt: '2026-11-02T09:00:00Z', parts: { '2026-10': 5000 } }];
+  const expenses = [{ id: 'e1', month: '2026-10', amount: 5000, settlementId: 's1' }];
+  // October: last check-in 31 Oct before the withdrawal → purchase counted in October
+  const oct = walletSpent({ checkins: [ck('2026-10-31', '2026-10-31T20:00:00Z', 20000)], startBalance: 93000, expenses, settlements, monthKey: '2026-10' });
+  assert.equal(oct.spent, 73000 + 5000);
+  // November starts with the carried 200 €; balance after withdrawal and 100 € spending: 93000 + 20000 − 5000 − 10000
+  const nov = walletSpent({ checkins: [ck('2026-11-05', '2026-11-05T10:00:00Z', 98000)], startBalance: 113000, expenses, settlements, monthKey: '2026-11' });
+  assert.equal(nov.spent, 10000);
 });

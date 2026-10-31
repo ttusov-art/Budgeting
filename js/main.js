@@ -12,9 +12,12 @@ import * as walletView from './ui/wallet.js';
 import * as monthView from './ui/month.js';
 import * as bigView from './ui/bigcosts.js';
 import * as settingsView from './ui/settings.js';
+import * as purchasesView from './ui/purchases.js';
+import { toSort } from './purchases.js';
 import { installSwipe } from './ui/swipe.js';
 
-const VIEWS = { wallet: walletView, month: monthView, big: bigView, settings: settingsView };
+// Order = tab order = swipe order.
+const VIEWS = { wallet: walletView, buys: purchasesView, month: monthView, big: bigView, settings: settingsView };
 
 const main = document.getElementById('main');
 let currentMonth = monthKeyOf(new Date());
@@ -49,7 +52,13 @@ function render() {
     else a.removeAttribute('aria-current');
   });
   // Month navigation means nothing on the Settings screen.
-  document.querySelector('.month-nav').style.visibility = view === 'settings' ? 'hidden' : 'visible';
+  document.querySelector('.month-nav').style.visibility = ['settings', 'buys'].includes(view) ? 'hidden' : 'visible';
+
+  // Badge on the Purchases tab: how many imported purchases still need sorting.
+  const waiting = toSort().length;
+  const badge = document.getElementById('buys-badge');
+  badge.hidden = waiting === 0;
+  badge.textContent = waiting > 99 ? '99+' : String(waiting);
 
   VIEWS[view].render(main, ctx());
 }
@@ -117,6 +126,8 @@ const actions = {
   'view:month': () => { location.hash = 'month'; },
   'view:big': () => { location.hash = 'big'; },
   'view:settings': () => { location.hash = 'settings'; },
+  'view:buys': () => { location.hash = 'buys'; },
+  import: () => { if (currentView() !== 'buys') location.hash = 'buys'; setTimeout(purchasesView.openImport, 0); },
   prevMonth: () => setMonth(addMonths(currentMonth, -1)),
   nextMonth: () => setMonth(addMonths(currentMonth, 1)),
   today: () => setMonth(monthKeyOf(new Date())),

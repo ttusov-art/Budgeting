@@ -5,9 +5,11 @@ import { isFormOpen } from './form.js';
 
 export const SHORTCUTS = [
   { keys: ['1'], label: 'Wallet', action: 'view:wallet' },
-  { keys: ['2'], label: 'Month', action: 'view:month' },
-  { keys: ['3'], label: 'Big costs', action: 'view:big' },
-  { keys: ['4'], label: 'Settings', action: 'view:settings' },
+  { keys: ['2'], label: 'Purchases', action: 'view:buys' },
+  { keys: ['3'], label: 'Month', action: 'view:month' },
+  { keys: ['4'], label: 'Big costs', action: 'view:big' },
+  { keys: ['5'], label: 'Settings', action: 'view:settings' },
+  { keys: ['I'], label: 'Import Revolut statement', action: 'import' },
   { keys: ['←', '→'], label: 'Previous / next month', action: null },
   { keys: ['T'], label: 'Jump to this month', action: 'today' },
   { keys: ['C'], label: 'Check in the Revolut balance', action: 'checkin' },
@@ -24,7 +26,7 @@ export const SHORTCUTS = [
 
 // Plain keys (no Ctrl) → action name.
 const PLAIN = {
-  '1': 'view:wallet', '2': 'view:month', '3': 'view:big', '4': 'view:settings',
+  '1': 'view:wallet', '2': 'view:buys', '3': 'view:month', '4': 'view:big', '5': 'view:settings', i: 'import',
   ArrowLeft: 'prevMonth', ArrowRight: 'nextMonth',
   t: 'today', c: 'checkin', a: 'topup', n: 'new', f: 'fixed', '?': 'help',
 };

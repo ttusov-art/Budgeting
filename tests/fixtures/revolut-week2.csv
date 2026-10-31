@@ -1,0 +1,4 @@
+Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance
+CARD_PAYMENT,Current,2026-10-29 19:05:00,2026-10-30 10:00:00,Bio Hofladen Erde,-10.00,0.35,EUR,COMPLETED,3297.30
+CARD_PAYMENT,Current,2026-10-30 17:30:00,2026-10-31 09:00:00,Lidl 1100 Berlin,-15.60,0.00,EUR,COMPLETED,3281.70
+CARD_PAYMENT,Current,2026-10-30 20:00:00,2026-10-31 09:00:00,Kino International,-24.00,0.00,EUR,COMPLETED,3257.70

@@ -133,6 +133,46 @@ export function spentSoFar(checkins, startBalance = 0, topups = []) {
   };
 }
 
+/**
+ * Spent so far this month, including common purchases paid with private
+ * money that haven't been withdrawn from the shared pocket yet.
+ *
+ *   spent = start + top-ups − balance            (what left the pocket, from the check-in)
+ *         − withdrawals this month for earlier months' purchases (they belong to those months)
+ *         + this month's common purchases not yet withdrawn at the check-in
+ *
+ * Without a check-in, spent = all of this month's common purchases.
+ * `settlements` = all withdrawals (any month); `expenses` = common purchases (any month).
+ */
+export function walletSpent({ checkins, startBalance, topups = [], expenses = [], settlements = [], monthKey }) {
+  const sorted = [...checkins].sort(byTime);
+  const last = sorted[sorted.length - 1] || null;
+  const mine = expenses.filter((e) => e.month === monthKey);
+  const byId = new Map(settlements.map((s) => [s.id, s]));
+  const withdrawnBefore = (e, point) => {
+    const s = e.settlementId && byId.get(e.settlementId);
+    return Boolean(s) && byTime(s, point) <= 0;
+  };
+
+  if (!last) {
+    const total = sum(mine.map((e) => e.amount));
+    return { spent: total, lastCheckin: null, pending: sum(mine.filter((e) => !e.settlementId).map((e) => e.amount)) };
+  }
+  if (last.balance === undefined || last.balance === null) {
+    return { spent: last.spent || 0, lastCheckin: last, pending: 0 }; // old-style check-in
+  }
+
+  const forOtherMonths = settlements
+    .filter((s) => s.month === monthKey && byTime(s, last) <= 0)
+    .reduce((acc, s) => acc + sum(Object.entries(s.parts || {}).filter(([m]) => m !== monthKey).map(([, v]) => v)), 0);
+  const pending = sum(mine.filter((e) => !withdrawnBefore(e, last)).map((e) => e.amount));
+  return {
+    spent: checkinSpent(last, startBalance, topups) - forOtherMonths + pending,
+    lastCheckin: last,
+    pending,
+  };
+}
+
 /** Balance of the latest check-in of a month, or null (used for carry-over). */
 export function lastBalance(checkins) {
   const withBalance = checkins.filter((c) => c.balance !== undefined && c.balance !== null).sort(byTime);

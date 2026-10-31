@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-31 l
+- New **Purchases** screen for the weekly routine: import the Revolut statement (CSV), sort each purchase into common or personal, then record the withdrawal from the shared pocket.
+- The app remembers per shop what you chose and suggests it next time ("Accept suggestions").
+- Already-imported transactions are skipped, so overlapping exports are fine.
+- Common purchases count as wallet spending as soon as they are sorted; withdrawals in a later month don't count twice.
+- Personal purchases and imported statements stay on the phone; only common purchases and withdrawals are shared.
+- Manual "add common purchase" for cash. Badge on the tab shows how many purchases wait to be sorted.
+- Tabs/shortcuts: 1 Wallet, 2 Purchases, 3 Month, 4 Big costs, 5 Settings; I = import.
+
 ## 2026-10-31 k
 - Month screen order follows the monthly routine: fixed costs → this month's money → big costs → lock → transfers → summary.
 - "Lock budget": once agreed, salaries, wallet budget, carry-over and the fixed-cost list become read-only and the big-cost shares are frozen. Ticking costs as paid and marking transfers still work. "Unlock" reopens it.

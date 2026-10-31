@@ -27,6 +27,10 @@ Every month you enter both salaries, agree on the wallet size, and list the fixe
 - **Budget vs. actual** always compares spending with the agreed wallet budget only.
 - **Lock**: at the start of a month, check the fixed costs and agree on the wallet budget, then lock. A locked month
   can't be edited by accident and keeps its big-cost shares even if a big cost changes later. Unlock to fix mistakes.
+- **Purchases paid with private money**: import your Revolut statement each week, mark each purchase
+  common or personal, and withdraw the common total from the shared pocket. Common purchases count as
+  spent as soon as they are sorted: spent = start + top-ups − balance − withdrawals this month for
+  earlier months' purchases + this month's common purchases not yet withdrawn at the check-in.
 - **Big costs**: a one-off purchase is spread evenly over N months; a recurring bill (yearly,
   half-yearly, quarterly) sets aside amount ÷ period every month. The share counts as paid by
   whoever pays the bill.
@@ -35,7 +39,8 @@ Every month you enter both salaries, agree on the wallet size, and list the fixe
 
 | Screen | What it does |
 | --- | --- |
-| Wallet | Budget left, pace vs. plan, daily/weekly figures, check-ins and added money; app version |
+| Wallet | Budget left, pace vs. plan, daily/weekly figures, check-ins, added money and withdrawals; app version |
+| Purchases | Import the Revolut CSV, sort purchases into common/personal (with suggestions per shop), withdraw the common total; recent withdrawals |
 | Month | Fixed costs (tick when paid), salaries, wallet budget, carry-over, big costs, **lock the budget**, transfers to the wallet (tap when done), private money, summary; "copy last month" |
 | Big costs | Spread purchases and recurring bills |
 | Settings | Names, whose phone, sync, backup, shortcuts, privacy |
@@ -44,7 +49,8 @@ Every month you enter both salaries, agree on the wallet size, and list the fixe
 
 | Keys | Action |
 | --- | --- |
-| `1` `2` `3` `4` | Wallet / Month / Big costs / Settings |
+| `1` … `5` | Wallet / Purchases / Month / Big costs / Settings |
+| `I` | Import Revolut statement |
 | `←` `→` | Previous / next month |
 | `T` | Jump to this month |
 | `C` | Check in the Revolut balance |
@@ -58,7 +64,7 @@ Every month you enter both salaries, agree on the wallet size, and list the fixe
 
 Shortcuts don't fire while you type in a field.
 
-On a phone, **swipe left / right** to move between the four screens.
+On a phone, **swipe left / right** to move between the five screens.
 
 ## Files
 
@@ -68,6 +74,7 @@ css/style.css          the look (light + dark mode)
 js/main.js             starts the app, routing, wires modules together
 js/state.js            data model; the only place that changes data (incl. undo/redo)
 js/storage.js          storage on this device, backup file format
+js/purchases.js        imported transactions (this phone only), sorting, shop memory
 js/sync.js             sync with the Google Sheet
 js/version.js          APP_VERSION (also in version.json)
 js/lib/money.js        cents, parsing "12,30", formatting
@@ -83,7 +90,7 @@ tests/                 unit tests + Playwright end-to-end tests (made-up data)
 ### Data model
 
 Everything is a flat list of **records**, each with `id`, `type`, `updatedAt`, `deleted`, `by`:
-`settings`, `month` (wallet budget), `income` (one per person per month, so both phones can enter theirs at once), `fixed`, `spread`, `checkin` (balance), `topup` (money added), `transfer` (deposit done, one per person per month). Amounts are whole
+`settings`, `month` (wallet budget), `income` (one per person per month, so both phones can enter theirs at once), `fixed`, `spread`, `checkin` (balance), `topup` (money added), `transfer` (deposit done, one per person per month), `expense` (a common purchase paid with private money), `settlement` (a withdrawal from the pocket, with the months it covers). Imported bank transactions and the per-shop memory are kept only on the phone (`hb.inbox`, `hb.shops`), never synced. Amounts are whole
 cents. Deleting marks a record `deleted` so the deletion can reach the other phone. When both phones
 changed the same record, the newer change wins.
 
@@ -95,8 +102,14 @@ python3 tests/app.spec.py          # app on Pixel 7 + 1366 px laptop, incl. two-
 python3 tests/update.spec.py       # a new version arrives on reload despite GitHub's caching
 ```
 
+Test data in `tests/fixtures/` is made up.
+
+```
+```
+
 ## Privacy
 
+- Imported bank statements and purchases marked personal stay on the phone that imported them.
 - Data is kept in the browser on each phone and in **your own** Google Sheet via **your own** Apps Script.
 - The sync key is stored only on the phones and in the script's properties, never in this repository or in backups.
 - No analytics, no tracking, no third-party code or fonts.

@@ -6,7 +6,7 @@
 
 import * as storage from './storage.js';
 import { mergeRecords } from './lib/merge.js';
-import { addMonths } from './lib/months.js';
+import { addMonths, dateKeyOf } from './lib/months.js';
 import { monthPlan, spreadSharesForMonth, walletStartBalance, lastBalance } from './lib/budget.js';
 
 let records = storage.loadRecords();
@@ -28,6 +28,11 @@ export function subscribe(fn) {
 
 function notify() {
   for (const fn of listeners) fn();
+}
+
+/** For device-only data kept elsewhere (purchases inbox): tell the screens to redraw. */
+export function notifyChange() {
+  notify();
 }
 
 // ---------- ids and time ----------
@@ -258,6 +263,36 @@ export function lockMonth(key) {
 
 export function unlockMonth(key) {
   put({ id: `month:${key}`, type: 'month', month: key, locked: false, lockedShares: null });
+}
+
+// ---------- common purchases paid with private money ----------
+
+/** Common purchases (shared), newest first. Optionally only one month's. */
+export const getExpenses = (key = null) => live('expense').filter((r) => !key || r.month === key).sort(byDate);
+/** Withdrawals from the shared pocket (shared), newest first. */
+export const getSettlements = () => live('settlement').sort(byDate);
+
+/** One person's common purchases that haven't been withdrawn yet. */
+export const pendingExpenses = (person) => live('expense').filter((e) => e.person === person && !e.settlementId).sort(byDate);
+
+/**
+ * Record that `person` withdrew their pending common purchases from the pocket.
+ * One change (one undo step): the withdrawal plus a link on each purchase.
+ */
+export function settleExpenses(person) {
+  const pending = pendingExpenses(person);
+  if (!pending.length) return null;
+  const today = dateKeyOf(new Date());
+  const parts = {};
+  for (const e of pending) parts[e.month] = (parts[e.month] || 0) + e.amount;
+  const settlement = {
+    id: newId('st'), type: 'settlement', month: today.slice(0, 7), date: today,
+    createdAt: new Date().toISOString(), person,
+    amount: pending.reduce((a, e) => a + e.amount, 0),
+    count: pending.length, parts,
+  };
+  put(settlement, ...pending.map((e) => ({ id: e.id, settlementId: settlement.id })));
+  return settlement;
 }
 
 export const fixedFor = (key) => live('fixed').filter((r) => r.month === key).sort(byOrder);

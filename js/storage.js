@@ -8,6 +8,8 @@ const KEYS = {
   cursor: 'hb.cursor',       // server time of the last successful sync
   device: 'hb.device',       // this device's own settings (sync URL, key, who am I)
   lastSync: 'hb.lastSync',   // when this device last synced (for display)
+  inbox: 'hb.inbox',         // imported bank transactions (this phone only, never synced)
+  shops: 'hb.shops',         // remembered choice per shop: 'common' | 'personal' (this phone only)
 };
 
 function read(key, fallback) {
@@ -40,6 +42,11 @@ export const saveCursor = (cursor) => write(KEYS.cursor, cursor);
 
 export const loadLastSync = () => read(KEYS.lastSync, '');
 export const saveLastSync = (iso) => write(KEYS.lastSync, iso);
+
+export const loadInbox = () => read(KEYS.inbox, {});
+export const saveInbox = (inbox) => write(KEYS.inbox, inbox);
+export const loadShops = () => read(KEYS.shops, {});
+export const saveShops = (shops) => write(KEYS.shops, shops);
 
 export const loadDevice = () => ({ syncUrl: '', syncKey: '', me: 't', ...read(KEYS.device, {}) });
 export const saveDevice = (device) => write(KEYS.device, device);

@@ -251,7 +251,9 @@ def run(p):
     # Swipe between screens
     page.goto(BASE + "#wallet")
     swipe(page, -150)
-    check("swipe left: Wallet → Month (with slide feedback)", page.url.endswith("#month") and feedback(page) == "go")
+    check("swipe left: Wallet → Purchases (with slide feedback)", page.url.endswith("#buys") and feedback(page) == "go")
+    swipe(page, -150)
+    check("swipe left: Purchases → Month", page.url.endswith("#month"))
     swipe(page, -150)
     check("swipe left: Month → Big costs", page.url.endswith("#big"))
     swipe(page, 150)
@@ -323,8 +325,8 @@ def run(p):
     print("Laptop flow (1366 px, keyboard)")
     ctx, page = new_page(browser, viewport={"width": 1366, "height": 860})
     page.goto(BASE)
-    page.keyboard.press("2")
-    check("key 2 opens Month", page.url.endswith("#month"))
+    page.keyboard.press("3")
+    check("key 3 opens Month", page.url.endswith("#month"))
     page.get_by_role("button", name="Start empty").click()
     page.fill("#wallet-budget", "600")
     page.locator("body").click(position={"x": 5, "y": 400})
@@ -355,7 +357,7 @@ def run(p):
     page.screenshot(path=str(SHOTS / "laptop-1366-help.png"))
     page.keyboard.press("Escape")
     page.screenshot(path=str(SHOTS / "laptop-1366-wallet.png"), full_page=True)
-    page.keyboard.press("4")
+    page.keyboard.press("5")
     page.screenshot(path=str(SHOTS / "laptop-1366-settings.png"), full_page=True)
     ctx.close()
 
@@ -444,6 +446,64 @@ def run(p):
     tonis.keyboard.press("Control+s")
     expect(tonis.get_by_test_id("remaining")).to_contain_text("700,00", timeout=5000)
     check("offline check-in arrives after reconnecting", True)
+
+    # ===== Weekly purchases: import Revolut CSV, sort, withdraw =====
+    FIX = ROOT / "tests" / "fixtures"
+    tonis.goto(BASE + "#buys")
+    tonis.set_input_files("#csv-file", str(FIX / "revolut-week1.csv"))
+    expect(tonis.get_by_test_id("sort-count")).to_have_text("3", timeout=3000)
+    check("import keeps 3 finished card payments (skips salary and pending)", True)
+    check("tab badge shows 3 to sort", tonis.locator("#buys-badge").inner_text() == "3")
+    tonis.get_by_role("button", name="Lidl 4521 Berlin: common").click()
+    tonis.get_by_role("button", name="Bäckerei Schmidt, Mitte: personal").click()
+    tonis.get_by_role("button", name="Bio Hofladen Erde: common").click()
+    # 23,45 + 10,35 (incl. fee) = 33,80
+    check("withdraw total = common purchases (33,80 €)", "33,80" in tonis.get_by_test_id("withdraw-total").inner_text())
+    check("nothing left to sort, badge hidden", tonis.get_by_test_id("sort-count").inner_text() == "0" and tonis.locator("#buys-badge").is_hidden())
+
+    tonis.set_input_files("#csv-file", str(FIX / "revolut-week1.csv"))
+    expect(tonis.locator("#toast")).to_contain_text("3 already imported", timeout=3000)
+    check("importing the same file again adds nothing", tonis.get_by_test_id("sort-count").inner_text() == "0")
+
+    tonis.set_input_files("#csv-file", str(FIX / "revolut-week2.csv"))
+    expect(tonis.get_by_test_id("sort-count")).to_have_text("2", timeout=3000)
+    check("overlapping export: only the 2 new purchases appear", True)
+    check("a known shop is suggested ('usually common' for another Lidl)", "usually common" in tonis.locator(".sort-row", has_text="Lidl 1100").inner_text())
+    tonis.get_by_role("button", name=re.compile("Accept 1 suggestion")).click()
+    check("accepting suggestions sorts the Lidl purchase", tonis.get_by_test_id("sort-count").inner_text() == "1")
+    tonis.get_by_role("button", name="Kino International: personal").click()
+    check("withdraw total now 49,40 €", "49,40" in tonis.get_by_test_id("withdraw-total").inner_text())
+
+    # Wallet counts unwithdrawn common purchases as spent already: 800 − 700 balance = 100, + 49,40
+    tonis.locator('.tabs [data-view="wallet"]').click()
+    check("wallet: common purchases count as spent before withdrawal", "149,40" in tonis.get_by_test_id("spent").inner_text())
+    check("wallet shows what is not withdrawn yet", "49,40" in tonis.get_by_test_id("pending-line").inner_text())
+
+    # Sync and privacy
+    tonis.keyboard.press("Control+s")
+    tonis.wait_for_timeout(400)
+    kris.goto(BASE + "#buys")
+    kris.keyboard.press("Control+s")
+    expect(kris.get_by_test_id("other-pending")).to_contain_text("49,40", timeout=5000)
+    check("Kristiina sees Tõnis's pending common purchases", "Tõnis: 3 purchases" in kris.get_by_test_id("other-pending").inner_text())
+    sheet_text = json.dumps([r["rec"] for r in sheet.rows.values()])
+    check("personal purchases never reach the Sheet", "Bäckerei" not in sheet_text and "Kino" not in sheet_text)
+    check("common purchases do reach the Sheet", "Lidl 4521 Berlin" in sheet_text)
+    check("Kristiina has nothing to sort (imports stay on Tõnis's phone)", kris.get_by_test_id("sort-count").inner_text() == "0")
+
+    # Withdraw
+    tonis.goto(BASE + "#buys")
+    tonis.get_by_role("button", name=re.compile("I've withdrawn 49,40")).click()
+    tonis.locator("#form-dialog").get_by_role("button", name=re.compile("Yes, 49,40")).click()
+    check("after withdrawing, nothing is left to withdraw", "0,00" in tonis.get_by_test_id("withdraw-total").inner_text())
+    check("withdrawal listed under recent withdrawals", "49,40" in tonis.locator("main").inner_text() and "Tõnis withdrew" in tonis.locator("main").inner_text())
+    tonis.locator('.tabs [data-view="wallet"]').click()
+    check("wallet spent unchanged right after withdrawing (149,40)", "149,40" in tonis.get_by_test_id("spent").inner_text())
+    tonis.get_by_role("button", name=re.compile("Check in")).click()
+    tonis.locator('#form-dialog [name="balance"]').fill("650,60")
+    tonis.locator('#form-dialog [name="balance"]').press("Enter")
+    check("check-in after the withdrawal: no double counting (still 149,40)", "149,40" in tonis.get_by_test_id("spent").inner_text())
+    check("withdrawal shows in the wallet entries", "withdrew for purchases" in tonis.locator(".list").inner_text())
 
     # Wrong key is refused
     kris.goto(BASE + "#settings")
