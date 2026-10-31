@@ -211,3 +211,43 @@ export function walletPace({ budget, spent, monthKey, todayKey }) {
 function sum(list) {
   return list.reduce((a, b) => a + (b || 0), 0);
 }
+
+// ---------- locking together ----------
+
+/**
+ * Short fingerprint of everything both people agree on when locking:
+ * fixed costs (name, amount, payer), salaries, wallet budget, carry-over and
+ * big-cost shares. Ticking costs as paid doesn't change it.
+ */
+export function budgetFingerprint({ fixed, incomes, walletBudget, carryOver, spreadShares }) {
+  const data = JSON.stringify({
+    f: fixed.map((c) => [c.name, c.amount, c.payer]).sort(),
+    i: [incomes.t || 0, incomes.k || 0],
+    w: walletBudget || 0,
+    c: carryOver || 0,
+    s: spreadShares.map((x) => [x.name, x.amount, x.payer]).sort(),
+  });
+  let h = 5381;
+  for (let i = 0; i < data.length; i++) h = ((h * 33) ^ data.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+
+/**
+ * What the two votes mean for the lock.
+ * votes: { t: { want: 'lock'|'unlock', fp } | null, k: … }
+ * Returns { action: 'lock' | 'unlock' | null, status: { t, k } } where status is
+ * 'approved' | 'stale' (approved other numbers) | 'waiting' | 'unlock' (asked to unlock).
+ */
+export function lockDecision({ locked, votes, currentFp }) {
+  const status = {};
+  for (const p of ['t', 'k']) {
+    const v = votes[p];
+    if (locked) status[p] = v && v.want === 'unlock' ? 'unlock' : 'waiting';
+    else if (!v || v.want !== 'lock') status[p] = 'waiting';
+    else status[p] = v.fp === currentFp ? 'approved' : 'stale';
+  }
+  let action = null;
+  if (!locked && status.t === 'approved' && status.k === 'approved') action = 'lock';
+  if (locked && status.t === 'unlock' && status.k === 'unlock') action = 'unlock';
+  return { action, status };
+}

@@ -68,7 +68,7 @@ export function render(main, ctx) {
 
   const lockNotice = m.locked ? '' : `
       <a class="notice" href="#month" data-testid="lock-notice">The budget for ${esc(monthLabel(month))} is not locked yet.
-        Agree on it on the Month screen →</a>`;
+        Both of you approve it on the Month screen →</a>`;
 
   main.innerHTML = `
     <div class="stack">${lockNotice}

@@ -105,6 +105,13 @@ def swipe(page, dx, dy=0, ms=150):
     page.wait_for_timeout(400)  # let the slide / bounce animation finish
 
 
+def be(page, name):
+    """Switch 'This phone belongs to' (Settings) and come back to the Month screen."""
+    page.locator('.tabs [data-view="settings"]').click()
+    page.locator('label[for="me-%s"]' % ("t" if name == "Tõnis" else "k")).click()
+    page.locator('.tabs [data-view="month"]').click()
+
+
 def feedback(page):
     return page.evaluate("document.querySelector('main').dataset.swipeFeedback || ''")
 
@@ -175,8 +182,22 @@ def run(p):
     expect(page.get_by_test_id("lock-notice")).to_have_count(1)
     check("wallet reminds that the budget isn't locked", True)
     page.locator('.tabs [data-view="month"]').click()
-    page.get_by_role("button", name=re.compile("Lock budget")).click()
-    check("locked: shows 'Budget locked'", "Budget locked" in page.get_by_test_id("lock-card").inner_text())
+    # Lock needs both: Tõnis approves first
+    page.get_by_role("button", name=re.compile("I approve the October 2026 budget")).click()
+    check("one approval doesn't lock yet", "Agree and lock" in page.get_by_test_id("lock-card").inner_text())
+    check("Tõnis shows as approved, Kristiina not yet", "approved" in page.get_by_test_id("vote-t").inner_text() and "not approved" in page.get_by_test_id("vote-k").inner_text())
+    # Changing a number after approving makes the approval stale
+    page.fill("#wallet-budget", "935")
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(100)
+    check("changing the budget after approving asks to approve again", "approve again" in page.get_by_test_id("vote-t").inner_text())
+    page.fill("#wallet-budget", "930")
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(100)
+    check("back to the approved numbers: approval counts again", "✓ approved" in page.get_by_test_id("vote-t").inner_text())
+    be(page, "Kristiina")
+    page.get_by_role("button", name=re.compile("I approve the October 2026 budget")).click()
+    check("locked: shows 'Budget locked' once both approved", "Budget locked" in page.get_by_test_id("lock-card").inner_text())
     check("locked: salary and budget fields are read-only", page.locator("#income-t").get_attribute("readonly") is not None and page.locator("#wallet-budget").get_attribute("readonly") is not None)
     check("locked: no + Add for fixed costs", page.get_by_role("button", name=re.compile(r"\+ Add")).count() == 0)
     page.locator("[data-paid]").nth(1).check()
@@ -190,10 +211,17 @@ def run(p):
     expect(page.get_by_test_id("lock-notice")).to_have_count(0)
     check("wallet reminder disappears when locked", True)
     page.locator('.tabs [data-view="month"]').click()
-    page.once("dialog", lambda d: d.accept())
-    page.get_by_role("button", name="Unlock").click()
-    check("unlock makes fields editable again", page.locator("#income-t").get_attribute("readonly") is None)
-    page.get_by_role("button", name=re.compile("Lock budget")).click()
+    page.get_by_role("button", name="Ask to unlock").click()
+    check("one unlock request keeps it locked", "Budget locked" in page.get_by_test_id("lock-card").inner_text() and page.locator("#income-t").get_attribute("readonly") is not None)
+    check("the request is shown", "asked to unlock" in page.get_by_test_id("vote-k").inner_text())
+    be(page, "Tõnis")
+    page.get_by_role("button", name=re.compile("Agree to unlock")).click()
+    check("unlocks when both agree; fields editable again", page.locator("#income-t").get_attribute("readonly") is None)
+    page.get_by_role("button", name=re.compile("I approve the October 2026 budget")).click()
+    be(page, "Kristiina")
+    page.get_by_role("button", name=re.compile("I approve the October 2026 budget")).click()
+    check("locked again after both approve", "Budget locked" in page.get_by_test_id("lock-card").inner_text())
+    be(page, "Tõnis")
 
     # Wallet
     page.locator('.tabs [data-view="wallet"]').click()
@@ -282,7 +310,7 @@ def run(p):
     page.locator("#next-month").click()
     page.get_by_role("button", name="Copy from October 2026").click()
     check("November copied 3 fixed costs, all unpaid", page.locator("[data-paid]").count() == 3 and page.locator(".row.is-paid").count() == 0)
-    check("a copied month starts unlocked", page.get_by_role("button", name=re.compile("Lock budget")).count() == 1)
+    check("a copied month starts unlocked and unapproved", page.get_by_role("button", name=re.compile("I approve the November 2026 budget")).count() == 1)
     check("a new month starts with transfers not done", page.get_by_test_id("status-t").inner_text() == "To transfer")
     check("November copied the salaries", page.input_value("#income-t") == "3000,00" and page.input_value("#income-k") == "2500,00")
 
@@ -404,6 +432,20 @@ def run(p):
     expect(tonis.locator("#income-k")).to_have_value("2600,00", timeout=5000)
     check("salaries entered at the same time on both phones are both kept",
           kris.input_value("#income-t") == "3100,00" and tonis.input_value("#income-t") == "3100,00")
+    # Lock across two phones: approvals travel through the Sheet
+    tonis.get_by_role("button", name=re.compile("I approve the October 2026 budget")).click()
+    tonis.keyboard.press("Control+s")
+    tonis.wait_for_timeout(400)
+    kris.keyboard.press("Control+s")
+    expect(kris.get_by_test_id("vote-t")).to_contain_text("approved", timeout=5000)
+    check("Kristiina's phone sees Tõnis's approval", True)
+    kris.get_by_role("button", name=re.compile("I approve the October 2026 budget")).click()
+    check("Kristiina's approval locks it on her phone", "Budget locked" in kris.get_by_test_id("lock-card").inner_text())
+    kris.wait_for_timeout(2500)
+    tonis.keyboard.press("Control+s")
+    expect(tonis.get_by_test_id("lock-card")).to_contain_text("Budget locked", timeout=5000)
+    check("and Tõnis's phone shows it locked after sync", True)
+
     # Transfer status syncs: Kristiina marks hers, Tõnis sees it
     kris.get_by_test_id("deposit-k").click()
     kris.wait_for_timeout(2500)

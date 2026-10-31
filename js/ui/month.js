@@ -15,6 +15,8 @@ export function render(main, ctx) {
     return;
   }
 
+  // Both approved (or both asked to unlock) since the last look? Apply it first.
+  state.applyLockVotes(month);
   const { m, fixed, spreadShares: shares, plan, carry, startBalance } = state.planFor(month);
   const incomes = state.getIncomes(month);
   const s = state.getSettings();
@@ -77,15 +79,15 @@ export function render(main, ctx) {
       </section>
     </div>`;
 
-  main.querySelector('[data-act="lock"]')?.addEventListener('click', () => {
-    state.lockMonth(month);
-    toast(`${monthLabel(month)} is locked`, { label: 'Undo', run: state.undo });
-  });
-  main.querySelector('[data-act="unlock"]')?.addEventListener('click', () => {
-    if (confirm(`Unlock ${monthLabel(month)}? Amounts and the fixed-cost list become editable again.`)) {
-      state.unlockMonth(month);
-      toast('Unlocked for editing');
-    }
+  main.querySelectorAll('[data-vote]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const want = btn.dataset.vote === 'none' ? null : btn.dataset.vote;
+      state.voteLock(month, want);
+      const { locked } = state.lockInfo(month);
+      if (want === 'lock') toast(locked ? `${monthLabel(month)} is locked: both agreed` : 'Approved. Waiting for the other one.');
+      else if (want === 'unlock') toast(locked ? 'Unlock requested. Waiting for the other one.' : 'Unlocked: both agreed');
+      else toast('Approval withdrawn');
+    });
   });
 
   if (locked) {
@@ -129,21 +131,46 @@ function bindTracking(main, month) {
 }
 
 function lockCard(month, m, s) {
-  if (m.locked) {
+  const me = state.getDevice().me;
+  const other = me === 't' ? 'k' : 't';
+  const { locked, status } = state.lockInfo(month);
+  const line = (p) => {
+    const text = {
+      approved: '✓ approved',
+      stale: 'approved earlier numbers. Needs to approve again',
+      waiting: locked ? 'happy with the lock' : 'not approved yet',
+      unlock: 'asked to unlock',
+    }[status[p]];
+    return `<li class="vote ${status[p]}" data-testid="vote-${p}"><b>${esc(s.names[p])}</b> · ${esc(text)}</li>`;
+  };
+
+  if (locked) {
     const when = m.lockedAt ? new Date(m.lockedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
-    const who = s.names[m.lockedBy] || '';
+    const iAsked = status[me] === 'unlock';
+    const theyAsked = status[other] === 'unlock';
     return `<section class="card lock-card is-locked" data-testid="lock-card">
-      <div class="lock-row">
-        <span><b>🔒 Budget locked</b><br><span class="muted small">${esc([when, who && 'by ' + who].filter(Boolean).join(' '))} · tracking uses these numbers</span></span>
-        <button class="btn small-btn" data-act="unlock">Unlock</button>
+      <b>🔒 Budget locked</b> <span class="muted small">${esc(when)} · tracking uses these numbers</span>
+      ${iAsked || theyAsked ? `<ul class="votes">${line('t')}${line('k')}</ul>` : ''}
+      <div class="btn-row" style="margin-top:10px">
+        ${iAsked
+          ? '<button class="btn small-btn" data-vote="lock">Cancel my unlock request</button>'
+          : `<button class="btn small-btn" data-vote="unlock">${theyAsked ? `Agree to unlock (${esc(s.names[other])} asked)` : 'Ask to unlock'}</button>`}
       </div>
+      <p class="muted small" style="margin:8px 0 0">Unlocks only when both of you agree.</p>
     </section>`;
   }
+
+  const mine = status[me];
   return `<section class="card lock-card" data-testid="lock-card">
     <h2>Agree and lock</h2>
     <p class="muted small" style="margin-top:0">Is the fixed-cost list complete, and is the wallet budget agreed?
-      Locking protects the numbers from accidental changes. Ticking costs as paid and marking transfers still work.</p>
-    <button class="btn primary" data-act="lock">🔒 Lock budget for ${esc(monthLabel(month))}</button>
+      The budget locks when <b>both</b> of you have approved the same numbers. Changing anything after approving asks for approval again.</p>
+    <ul class="votes">${line('t')}${line('k')}</ul>
+    <div class="btn-row">
+      ${mine === 'approved'
+        ? '<button class="btn small-btn" data-vote="none">Withdraw my approval</button>'
+        : `<button class="btn primary" data-vote="lock">✓ ${mine === 'stale' ? 'Approve the new numbers' : `I approve the ${esc(monthLabel(month))} budget`}</button>`}
+    </div>
   </section>`;
 }
 

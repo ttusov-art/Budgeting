@@ -7,7 +7,7 @@
 import * as storage from './storage.js';
 import { mergeRecords } from './lib/merge.js';
 import { addMonths, dateKeyOf } from './lib/months.js';
-import { monthPlan, spreadSharesForMonth, walletStartBalance, lastBalance } from './lib/budget.js';
+import { monthPlan, spreadSharesForMonth, walletStartBalance, lastBalance, budgetFingerprint, lockDecision } from './lib/budget.js';
 
 let records = storage.loadRecords();
 let dirty = storage.loadDirty();
@@ -87,6 +87,12 @@ function commit(list, { recordUndo = true } = {}) {
 export function put(...changes) {
   const list = changes.map((c) => ({ ...(records[c.id] || {}), ...c, deleted: false }));
   return commit(list);
+}
+
+/** Like put(), but not an undo step (used for automatic changes such as locking after both agreed). */
+function putQuietly(...changes) {
+  const list = changes.map((c) => ({ ...(records[c.id] || {}), ...c, deleted: false }));
+  return commit(list, { recordUndo: false });
 }
 
 /** Mark records as deleted (kept as a "tombstone" so the deletion can sync). */
@@ -253,16 +259,56 @@ export function planFor(key) {
 /** Is the month's budget agreed and locked? */
 export const isLocked = (key) => Boolean(getMonth(key)?.locked);
 
-export function lockMonth(key) {
-  put({
-    id: `month:${key}`, type: 'month', month: key,
-    locked: true, lockedAt: new Date().toISOString(), lockedBy: device.me,
-    lockedShares: spreadSharesForMonth(getSpreads(), key),
+/** Fingerprint of the numbers being agreed for a month (see budgetFingerprint). */
+export function monthFingerprint(key) {
+  const m = getMonth(key) || {};
+  const shares = m.locked && Array.isArray(m.lockedShares) ? m.lockedShares : spreadSharesForMonth(getSpreads(), key);
+  return budgetFingerprint({
+    fixed: fixedFor(key), incomes: getIncomes(key), walletBudget: m.walletBudget || 0,
+    carryOver: carryOverFor(key).amount, spreadShares: shares,
   });
 }
 
-export function unlockMonth(key) {
-  put({ id: `month:${key}`, type: 'month', month: key, locked: false, lockedShares: null });
+/** Each person's vote for a month: { want: 'lock'|'unlock', fp, at } or null. One record per person. */
+export function getLockVotes(key) {
+  const votes = { t: null, k: null };
+  for (const p of ['t', 'k']) {
+    const r = records[`lockvote:${key}:${p}`];
+    if (r && !r.deleted) votes[p] = { want: r.want, fp: r.fp, at: r.at };
+  }
+  return votes;
+}
+
+/** This phone's owner votes to lock (approving the current numbers), to unlock, or withdraws (null). */
+export function voteLock(key, want) {
+  put({
+    id: `lockvote:${key}:${device.me}`, type: 'lockvote', month: key, person: device.me,
+    want, fp: want === 'lock' ? monthFingerprint(key) : null, at: new Date().toISOString(),
+  });
+  applyLockVotes(key);
+}
+
+/** Lock status for the screen: { locked, status: { t, k } }. */
+export function lockInfo(key) {
+  const locked = isLocked(key);
+  return { locked, ...lockDecision({ locked, votes: getLockVotes(key), currentFp: monthFingerprint(key) }) };
+}
+
+/**
+ * Lock or unlock when both votes agree. Runs on whichever phone notices first
+ * (after a vote or after a sync); doing it twice is harmless.
+ */
+export function applyLockVotes(key) {
+  const { action } = lockInfo(key);
+  if (action === 'lock') {
+    putQuietly({
+      id: `month:${key}`, type: 'month', month: key, locked: true, lockedAt: new Date().toISOString(),
+      lockedShares: spreadSharesForMonth(getSpreads(), key),
+    });
+  } else if (action === 'unlock') {
+    putQuietly({ id: `month:${key}`, type: 'month', month: key, locked: false, lockedShares: null });
+  }
+  return action;
 }
 
 // ---------- common purchases paid with private money ----------

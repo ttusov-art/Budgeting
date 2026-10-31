@@ -25,8 +25,10 @@ Every month you enter both salaries, agree on the wallet size, and list the fixe
 - **Add money** = personal money put into the wallet (e.g. when the pace is too high). Raises the balance,
   never counts as negative spending.
 - **Budget vs. actual** always compares spending with the agreed wallet budget only.
-- **Lock**: at the start of a month, check the fixed costs and agree on the wallet budget, then lock. A locked month
-  can't be edited by accident and keeps its big-cost shares even if a big cost changes later. Unlock to fix mistakes.
+- **Lock**: at the start of a month, check the fixed costs and agree on the wallet budget; then **both** approve.
+  The month locks when both approvals match the current numbers (changing anything after approving asks for
+  approval again). A locked month can't be edited by accident and keeps its big-cost shares. Unlocking also
+  needs both: one asks, the other agrees.
 - **Purchases paid with private money**: import your Revolut statement each week, mark each purchase
   common or personal, and withdraw the common total from the shared pocket. Common purchases count as
   spent as soon as they are sorted: spent = start + top-ups − balance − withdrawals this month for
@@ -90,7 +92,7 @@ tests/                 unit tests + Playwright end-to-end tests (made-up data)
 ### Data model
 
 Everything is a flat list of **records**, each with `id`, `type`, `updatedAt`, `deleted`, `by`:
-`settings`, `month` (wallet budget), `income` (one per person per month, so both phones can enter theirs at once), `fixed`, `spread`, `checkin` (balance), `topup` (money added), `transfer` (deposit done, one per person per month), `expense` (a common purchase paid with private money), `settlement` (a withdrawal from the pocket, with the months it covers). Imported bank transactions and the per-shop memory are kept only on the phone (`hb.inbox`, `hb.shops`), never synced. Amounts are whole
+`settings`, `month` (wallet budget), `income` (one per person per month, so both phones can enter theirs at once), `fixed`, `spread`, `checkin` (balance), `topup` (money added), `transfer` (deposit done, one per person per month), `lockvote` (each person's approval or unlock request, with a fingerprint of the approved numbers), `expense` (a common purchase paid with private money), `settlement` (a withdrawal from the pocket, with the months it covers). Imported bank transactions and the per-shop memory are kept only on the phone (`hb.inbox`, `hb.shops`), never synced. Amounts are whole
 cents. Deleting marks a record `deleted` so the deletion can reach the other phone. When both phones
 changed the same record, the newer change wins.
 

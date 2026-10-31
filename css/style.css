@@ -323,6 +323,10 @@ kbd {
   background: var(--warn-soft); color: var(--warn); font-weight: 600; font-size: 0.9rem; text-decoration: none;
 }
 .lock-card.is-locked { border-color: var(--good); }
+.votes { list-style: none; padding: 0; margin: 8px 0 12px; display: grid; gap: 4px; font-size: 0.9rem; }
+.vote::before { content: '○ '; color: var(--ink-soft); }
+.vote.approved::before { content: '● '; color: var(--good); }
+.vote.stale::before, .vote.unlock::before { content: '● '; color: var(--warn); }
 .lock-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .row-btn.is-static { cursor: default; }
 .row-btn.is-static:hover { background: none; }

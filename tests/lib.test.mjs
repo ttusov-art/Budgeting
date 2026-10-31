@@ -9,7 +9,7 @@ import { spreadSharesForMonth, monthPlan, spentSoFar, walletPace, walletStartBal
 import { mergeRecords } from '../js/lib/merge.js';
 import { parseCsv, parseRevolut, merchantKey, parseDateTime, parseAmount, repairEncoding } from '../js/lib/revolut.js';
 import { readFileSync } from 'node:fs';
-import { walletSpent } from '../js/lib/budget.js';
+import { walletSpent, budgetFingerprint, lockDecision } from '../js/lib/budget.js';
 
 test('parseCents understands German and English number styles', () => {
   assert.equal(parseCents('12,30'), 1230);
@@ -317,4 +317,32 @@ test('a file mixing garbled and correct lines is repaired line by line', () => {
 test('amounts with stray symbols still read', () => {
   assert.equal(parseAmount('-â¬33.94'), -3394);
   assert.equal(parseAmount('â¬3,841.75'), 384175);
+});
+
+// ---------- locking together ----------
+
+const plan = { fixed: [{ name: 'Rent', amount: 100000, payer: 'k', paid: false }], incomes: { t: 300000, k: 250000 }, walletBudget: 90000, carryOver: 0, spreadShares: [] };
+
+test('fingerprint changes with the agreed numbers, not with paid ticks', () => {
+  const a = budgetFingerprint(plan);
+  assert.equal(budgetFingerprint({ ...plan, fixed: [{ ...plan.fixed[0], paid: true }] }), a);
+  assert.notEqual(budgetFingerprint({ ...plan, walletBudget: 95000 }), a);
+  assert.notEqual(budgetFingerprint({ ...plan, incomes: { t: 300000, k: 260000 } }), a);
+  assert.notEqual(budgetFingerprint({ ...plan, fixed: [...plan.fixed, { name: 'Phone', amount: 5000, payer: 't' }] }), a);
+});
+
+test('locks only when both approved the same, current numbers', () => {
+  const fp = budgetFingerprint(plan);
+  assert.equal(lockDecision({ locked: false, votes: { t: { want: 'lock', fp }, k: null }, currentFp: fp }).action, null);
+  assert.equal(lockDecision({ locked: false, votes: { t: { want: 'lock', fp }, k: { want: 'lock', fp } }, currentFp: fp }).action, 'lock');
+  const stale = lockDecision({ locked: false, votes: { t: { want: 'lock', fp: 'old' }, k: { want: 'lock', fp } }, currentFp: fp });
+  assert.equal(stale.action, null);
+  assert.equal(stale.status.t, 'stale');
+});
+
+test('unlocks only when both asked to unlock', () => {
+  const fp = 'x';
+  assert.equal(lockDecision({ locked: true, votes: { t: { want: 'unlock' }, k: { want: 'lock', fp } }, currentFp: fp }).action, null);
+  assert.equal(lockDecision({ locked: true, votes: { t: { want: 'unlock' }, k: { want: 'unlock' } }, currentFp: fp }).action, 'unlock');
+  assert.equal(lockDecision({ locked: true, votes: { t: null, k: null }, currentFp: fp }).status.t, 'waiting');
 });

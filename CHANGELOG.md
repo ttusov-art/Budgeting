@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-31 q
+- Locking needs both: the month locks when both have approved the same numbers, and unlocks only when both agree. Each phone votes for its owner (Settings → This phone belongs to).
+- An approval is tied to the numbers: changing salaries, wallet budget, carry-over, fixed costs or big-cost shares after approving asks for approval again.
+
 ## 2026-10-31 p
 - Purchases: new "Personal & already settled" list (collapsed) with "Back" per purchase and "Put all back", to fix wrong choices.
 
