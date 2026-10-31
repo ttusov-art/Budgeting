@@ -227,6 +227,9 @@ let slideFrom = null;
 window.addEventListener('hashchange', () => {
   render();
   if (slideFrom) {
+    // A new screen starts at the top, standing still. This also stops any scrolling
+    // that was still gliding from the swipe, so the next tap works at once.
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     main.classList.remove('slide-from-left', 'slide-from-right');
     void main.offsetWidth; // restart the animation
     main.classList.add(`slide-from-${slideFrom}`);

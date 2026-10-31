@@ -81,6 +81,7 @@ button { cursor: pointer; }
 
 /* Interactive areas: no text selection or long-press menu on touch. */
 button, .tabs a, .row-btn, .seg label {
+  touch-action: manipulation; /* react to taps straight away, never wait for a double tap */
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;

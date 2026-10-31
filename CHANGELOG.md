@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-31 zj
+- Buttons respond right after a swipe: a sideways swipe no longer also scrolls the page (that leftover glide swallowed the next tap), a new screen starts at the top standing still, and buttons never wait for a possible double tap.
+
 ## 2026-10-31 zi
 - Check in balance first asks whether the latest purchases are sorted (and says how many are waiting). No → Purchases; Yes → enter the Revolut balance.
 

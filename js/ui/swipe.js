@@ -49,12 +49,16 @@ export function installSwipe(listenOn, { target, canGo, onLeft, onRight }) {
       sideways = Math.abs(dx) > Math.abs(dy) * SIDEWAYS_RATIO;
       if (!sideways) return;
     }
+    // A sideways swipe must not also scroll the page up or down: that scrolling keeps
+    // gliding after the finger lifts, and the next tap (e.g. on the month arrows)
+    // would only stop the glide instead of pressing the button.
+    if (e.cancelable) e.preventDefault();
     // Follow the finger: freely towards a neighbouring screen,
     // with "rubber band" resistance towards an edge.
     const step = dx < 0 ? 1 : -1;
     offset = canGo(step) ? dx * 0.5 : Math.sign(dx) * Math.min(60, Math.abs(dx) * 0.25);
     if (!reducedMotion()) target.style.transform = `translateX(${offset}px)`;
-  }, { passive: true });
+  }, { passive: false }); // not passive, so preventDefault can stop the up/down scroll
 
   listenOn.addEventListener('touchend', (e) => {
     if (!start) return;

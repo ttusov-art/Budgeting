@@ -323,6 +323,30 @@ def run(p):
     page.goto(BASE + "#month")
     swipe(page, -150)
     check("swipe left: Month → Wallet (with slide feedback)", page.url.endswith("#wallet") and feedback(page) == "go")
+    stopped = page.evaluate("""() => {
+        const el = document.querySelector('main');
+        const touch = (x, y) => new Touch({ identifier: 7, target: el, clientX: x, clientY: y });
+        const fire = (type, x, y) => { const e = new TouchEvent(type, { bubbles: true, cancelable: true,
+            touches: type === 'touchend' ? [] : [touch(x, y)], changedTouches: [touch(x, y)] }); el.dispatchEvent(e); return e.defaultPrevented; };
+        fire('touchstart', 200, 400);
+        const side = fire('touchmove', 170, 405);
+        fire('touchend', 170, 405);
+        fire('touchstart', 200, 400);
+        const down = fire('touchmove', 202, 360);
+        fire('touchend', 202, 360);
+        return { side, down };
+    }""")
+    page.wait_for_timeout(300)
+    check("a sideways swipe doesn't also scroll the page (no glide that eats the next tap)", stopped["side"] is True)
+    check("scrolling up and down is left to the browser", stopped["down"] is False)
+    page.evaluate("window.scrollTo(0, 300)")
+    swipe(page, -150, dy=-20)
+    title = page.locator("#month-title").inner_text()
+    page.locator("#prev-month").click()
+    check("month arrow works right after a swipe", page.locator("#month-title").inner_text() != title)
+    check("the new screen starts at the top", page.evaluate("window.scrollY") == 0)
+    page.locator("#next-month").click()
+    swipe(page, 150)
     swipe(page, -150)
     check("swipe left: Wallet → Purchases", page.url.endswith("#buys"))
     swipe(page, -150)
