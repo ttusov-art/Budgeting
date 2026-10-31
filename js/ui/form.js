@@ -42,9 +42,11 @@ export function openForm({ title, fields, submitLabel = 'Save', deleteLabel = nu
 
   return new Promise((resolve) => {
     let done = false;
+    const cleanups = [];
     const finish = (result) => {
       if (done) return;
       done = true;
+      cleanups.forEach((undo) => undo());
       if (dlg.open) dlg.close();
       // Without this, focus can stay on an input inside the closed dialog,
       // and keyboard shortcuts would think you are still typing.
@@ -65,7 +67,11 @@ export function openForm({ title, fields, submitLabel = 'Save', deleteLabel = nu
     dlg.querySelector('[data-act="cancel"]').addEventListener('click', () => finish(null));
     const del = dlg.querySelector('[data-act="delete"]');
     if (del) del.addEventListener('click', () => finish({ __delete: true }));
-    dlg.addEventListener('close', () => finish(null), { once: true });
+    // The "close" event arrives a moment after closing. When one form opens right after
+    // another, the old form's close must not shut the new one: only react while closed.
+    const onClose = () => { if (!dlg.open) finish(null); };
+    dlg.addEventListener('close', onClose);
+    cleanups.push(() => dlg.removeEventListener('close', onClose));
 
     applyShowIf(form, fields);
     form.addEventListener('change', () => applyShowIf(form, fields));
@@ -75,14 +81,15 @@ export function openForm({ title, fields, submitLabel = 'Save', deleteLabel = nu
     if (window.visualViewport) {
       const onResize = () => keepVisible(document.activeElement);
       window.visualViewport.addEventListener('resize', onResize);
-      dlg.addEventListener('close', () => window.visualViewport.removeEventListener('resize', onResize), { once: true });
+      cleanups.push(() => window.visualViewport.removeEventListener('resize', onResize));
     }
 
     // A thin line above the pinned buttons only when the form is scrollable.
     const markScrolling = () => dlg.classList.toggle('is-scrolling', dlg.scrollHeight > dlg.clientHeight + 1);
     dlg.addEventListener('scroll', markScrolling, { passive: true });
     window.visualViewport?.addEventListener('resize', markScrolling);
-    dlg.addEventListener('close', () => window.visualViewport?.removeEventListener('resize', markScrolling), { once: true });
+    cleanups.push(() => window.visualViewport?.removeEventListener('resize', markScrolling));
+    cleanups.push(() => dlg.removeEventListener('scroll', markScrolling));
 
     dlg.showModal();
     markScrolling();

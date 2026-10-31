@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-31 zi
+- Check in balance first asks whether the latest purchases are sorted (and says how many are waiting). No → Purchases; Yes → enter the Revolut balance.
+
 ## 2026-10-31 zh
 - Purchases: Import CSV is a green main button.
 

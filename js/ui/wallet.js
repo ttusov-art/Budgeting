@@ -8,7 +8,7 @@ import { walletSpent, walletPace, checkinSpent } from '../lib/budget.js';
 import { formatCents, formatCentsWhole } from '../lib/money.js';
 import { dateKeyOf, shortDateLabel, monthLabel, daysInMonth } from '../lib/months.js';
 import { APP_VERSION } from '../version.js';
-import { sortStatus, daysAgoLabel } from '../purchases.js';
+import { sortStatus, daysAgoLabel, toSort } from '../purchases.js';
 import { esc, toast, payerOptions } from './dom.js';
 import { openForm } from './form.js';
 
@@ -193,7 +193,40 @@ function defaultDate(ctx) {
   return ctx.month < ctx.todayKey.slice(0, 7) ? `${ctx.month}-${daysInMonth(ctx.month)}` : `${ctx.month}-01`;
 }
 
+/**
+ * Before a new check-in: are the latest purchases sorted? Common purchases paid with
+ * private money only count once sorted, so checking in before that makes the pace look off.
+ * Returns true to go on; "No" takes you to Purchases.
+ */
+async function askSorted() {
+  const waiting = toSort().length;
+  const sorted = sortStatus();
+  const status = waiting
+    ? `${waiting} purchase${waiting === 1 ? ' is' : 's are'} waiting to be sorted on this phone.`
+    : sorted.at ? `Last sorted on this phone ${daysAgoLabel(sorted.daysAgo)}.` : '';
+  let sortFirst = false;
+  const asked = openForm({
+    title: 'Are the latest purchases sorted?',
+    fields: [],
+    submitLabel: 'Yes, enter balance',
+    extraHtml: `
+      <p class="muted" style="margin-top:0">Sort the purchases you paid with your own money first, so the Revolut balance is compared fairly.</p>
+      ${status ? `<p class="small" data-testid="sorted-status"><b>${esc(status)}</b></p>` : ''}
+      <button type="button" class="btn" style="width:100%" data-act="sort-first">No, sort them first</button>`,
+  });
+  const dlg = document.getElementById('form-dialog');
+  dlg.querySelector('button[type="submit"]').focus();
+  dlg.querySelector('[data-act="sort-first"]').addEventListener('click', () => {
+    sortFirst = true;
+    dlg.close();
+  });
+  const answer = await asked;
+  if (sortFirst) location.hash = 'buys';
+  return answer !== null;
+}
+
 export async function checkIn(ctx, existing = null) {
+  if (!existing && !(await askSorted())) return;
   const month = existing ? existing.month : ctx.month;
   const start = state.planFor(month).startBalance;
   const values = await openForm({
