@@ -28,10 +28,11 @@ export function reloadLocal() {
 
 const expenseId = (key) => `ex_${key}`;
 
-/** 'common' | 'personal' | 'new' — common is read from the shared record, so undo/sync stay consistent. */
+/** 'common' | 'personal' | 'settled' | 'new' — common is read from the shared record, so undo/sync stay consistent. */
 export function statusOf(tx) {
   const e = state.allRecords()[expenseId(tx.key)];
   if (e && !e.deleted) return 'common';
+  if (tx.settled) return 'settled';
   return tx.personal ? 'personal' : 'new';
 }
 
@@ -102,6 +103,25 @@ export function acceptSuggestions() {
     }
   }
   return n;
+}
+
+/**
+ * "Already settled before …": clear every unsorted purchase on or before `dateKey`
+ * without deciding common/personal and without teaching the shop memory anything.
+ * For purchases that were balanced out some other way (e.g. before using the app).
+ * Returns the keys that were cleared, so the step can be undone.
+ */
+export function settleUpTo(dateKey) {
+  const keys = toSort().filter((tx) => tx.date <= dateKey).map((tx) => tx.key);
+  for (const key of keys) inbox[key].settled = true;
+  if (keys.length) save();
+  return keys;
+}
+
+/** Undo settleUpTo: put those purchases back into "To sort". */
+export function unsettle(keys) {
+  for (const key of keys) if (inbox[key]) delete inbox[key].settled;
+  save();
 }
 
 /** Common purchase typed in by hand (cash, or missing from the export). */

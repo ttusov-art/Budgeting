@@ -40,7 +40,7 @@ Every month you enter both salaries, agree on the wallet size, and list the fixe
 | Screen | What it does |
 | --- | --- |
 | Wallet | Budget left, pace vs. plan, daily/weekly figures, check-ins, added money and withdrawals; app version |
-| Purchases | Import the Revolut CSV, sort purchases into common/personal (with suggestions per shop), withdraw the common total; recent withdrawals |
+| Purchases | Import the Revolut CSV, sort purchases into common/personal (with suggestions per shop), withdraw the common total; "Already settled before…" clears old purchases without affecting suggestions; recent withdrawals |
 | Month | Fixed costs (tick when paid), salaries, wallet budget, carry-over, big costs, **lock the budget**, transfers to the wallet (tap when done), private money, summary; "copy last month" |
 | Big costs | Spread purchases and recurring bills |
 | Settings | Names, whose phone, sync, backup, shortcuts, privacy |

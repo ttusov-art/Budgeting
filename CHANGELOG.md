@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-31 o
+- Purchases: "Already settled before…" clears unsorted purchases up to a date (e.g. ones balanced out before using the app) without counting them as common or personal and without teaching the shop memory. Undo available.
+
 ## 2026-10-31 n
 - Fix: Revolut statements with garbled characters ("-â¬33.94" instead of "-€33.94") imported 0 purchases. Garbled text is now repaired (also umlauts in shop names), and amounts are read even with stray symbols.
 - When nothing is imported, the message says why (incoming only, exchanges, unreadable amounts).

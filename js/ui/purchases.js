@@ -39,6 +39,7 @@ export function render(main) {
           <input id="csv-file" type="file" accept=".csv,text/csv,text/comma-separated-values,application/vnd.ms-excel" hidden>
         </div>
         ${suggested ? `<button class="btn" style="width:100%;margin-bottom:8px" data-act="accept">Accept ${suggested} suggestion${suggested > 1 ? 's' : ''}</button>` : ''}
+        ${queue.length ? `<button class="btn small-btn" style="margin-bottom:8px" data-act="settle-before" title="Clear purchases that were balanced out some other way">Already settled before…</button>` : ''}
         ${queue.length ? `<ul class="list">${queue.map((tx) => sortRow(tx)).join('')}</ul>` : `
           <p class="empty">Everything is sorted.</p>
           <details class="howto"><summary>How to export from Revolut</summary>
@@ -72,6 +73,7 @@ export function render(main) {
     toast(`${n} sorted from earlier choices`);
   });
   main.querySelector('[data-act="settle"]')?.addEventListener('click', () => settle(me));
+  main.querySelector('[data-act="settle-before"]')?.addEventListener('click', () => settleBefore(queue));
   main.querySelector('[data-act="manual"]').addEventListener('click', addManual);
   main.querySelectorAll('[data-choose]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -150,6 +152,23 @@ async function settle(me) {
   if (!values) return;
   state.settleExpenses(me);
   toast(`Withdrawal of ${formatCents(total)} recorded`, { label: 'Undo', run: state.undo });
+}
+
+/** Clear old unsorted purchases that were balanced out outside the app. */
+async function settleBefore(queue) {
+  const latest = queue.reduce((max, tx) => (tx.date > max ? tx.date : max), queue[0].date);
+  const values = await openForm({
+    title: 'Already settled before…',
+    fields: [
+      { name: 'date', label: 'Clear everything still unsorted up to and including', type: 'date', required: true, value: latest,
+        hint: 'For purchases you balanced out some other way. They disappear from "To sort" without counting as common or personal, and the app does not learn anything about those shops. Sort the ones you want to keep first.' },
+    ],
+    submitLabel: 'Clear them',
+  });
+  if (!values) return;
+  const keys = purchases.settleUpTo(values.date);
+  toast(keys.length ? `${keys.length} purchase${keys.length > 1 ? 's' : ''} cleared as already settled` : 'Nothing unsorted up to that date',
+    keys.length ? { label: 'Undo', run: () => purchases.unsettle(keys) } : undefined);
 }
 
 async function addManual() {
