@@ -55,6 +55,8 @@ export function render(main) {
 
       <button class="btn" data-act="manual">+ Add common purchase by hand (cash)</button>
 
+      ${sortedAwayCard()}
+
       <section class="card">
         <h2>Recent withdrawals</h2>
         ${settlements.length ? `<ul class="list">${settlements.map((st) => `
@@ -82,6 +84,18 @@ export function render(main) {
       toast(`${tx ? tx.description : 'Purchase'}: ${btn.dataset.choice}`);
     });
   });
+  main.querySelectorAll('[data-back]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      purchases.backToSort([btn.dataset.back]);
+      toast('Back in "To sort"');
+    });
+  });
+  main.querySelector('[data-act="back-all"]')?.addEventListener('click', () => {
+    const keys = purchases.sortedAway().map((tx) => tx.key);
+    if (!confirm(`Put all ${keys.length} back into "To sort"?`)) return;
+    purchases.backToSort(keys);
+    toast(`${keys.length} purchases back in "To sort"`);
+  });
   main.querySelectorAll('[data-expense]').forEach((btn) => {
     btn.addEventListener('click', () => editExpense(state.allRecords()[btn.dataset.expense]));
   });
@@ -106,6 +120,26 @@ function sortRow(tx) {
       <button class="chip-btn common ${suggestion === 'common' ? 'suggested' : ''}" data-choose="${esc(tx.key)}" data-choice="common" aria-label="${esc(tx.description)}: common">Common</button>
     </span>
   </li>`;
+}
+
+/** Purchases sorted as personal or cleared as settled, with a way back. Collapsed by default. */
+function sortedAwayCard() {
+  const list = purchases.sortedAway();
+  if (!list.length) return '';
+  const shown = list.slice(0, 100);
+  return `<details class="card sorted-away" data-testid="sorted-away">
+    <summary><b>Personal & already settled</b> <span class="muted small">${list.length}</span></summary>
+    <p class="muted small">Picked the wrong one? Put it back into "To sort".</p>
+    <button class="btn small-btn" data-act="back-all">Put all ${list.length} back</button>
+    <ul class="list" style="margin-top:8px">${shown.map((tx) => `
+      <li class="row">
+        <span class="grow"><span class="title">${esc(tx.description)}</span>
+          <span class="sub">${esc(shortDateLabel(tx.date))} · ${purchases.statusOf(tx) === 'settled' ? 'already settled' : 'personal'}</span></span>
+        <span class="amount">${formatCents(tx.amount)}</span>
+        <button class="btn small-btn" data-back="${esc(tx.key)}" aria-label="${esc(tx.description)}: back to sorting">Back</button>
+      </li>`).join('')}</ul>
+    ${list.length > shown.length ? `<p class="muted small">Showing the newest ${shown.length}.</p>` : ''}
+  </details>`;
 }
 
 function expenseRow(e) {

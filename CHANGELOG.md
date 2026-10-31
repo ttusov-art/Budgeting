@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-31 p
+- Purchases: new "Personal & already settled" list (collapsed) with "Back" per purchase and "Put all back", to fix wrong choices.
+
 ## 2026-10-31 o
 - Purchases: "Already settled before…" clears unsorted purchases up to a date (e.g. ones balanced out before using the app) without counting them as common or personal and without teaching the shop memory. Undo available.
 

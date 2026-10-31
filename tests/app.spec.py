@@ -542,6 +542,20 @@ def run(p):
     solo.set_input_files("#csv-file", str(FIX / "revolut-week1.csv"))
     expect(solo.locator("#toast")).to_contain_text("3 already imported", timeout=3000)
     check("cleared purchases don't come back on re-import", solo.get_by_test_id("sort-count").inner_text() == "1")
+
+    # Wrong choice? Put personal / settled purchases back into "To sort"
+    solo.get_by_role("button", name="Bio Hofladen Erde: personal").click()
+    solo.get_by_test_id("sorted-away").locator("summary").click()
+    check("personal and settled purchases are listed", "Bäckerei Schmidt" in solo.get_by_test_id("sorted-away").inner_text() and "personal" in solo.get_by_test_id("sorted-away").inner_text())
+    solo.get_by_role("button", name="Bio Hofladen Erde: back to sorting").click()
+    check("'Back' puts one purchase back into To sort", solo.get_by_test_id("sort-count").inner_text() == "1" and solo.locator(".sort-row", has_text="Bio Hofladen").count() == 1)
+    solo.get_by_test_id("sorted-away").locator("summary").click()
+    solo.once("dialog", lambda d: d.accept())
+    solo.get_by_role("button", name=re.compile("Put all 1 back")).click()
+    check("'Put all back' returns the settled ones too", solo.get_by_test_id("sort-count").inner_text() == "2")
+    solo.locator("[data-expense]").first.click()
+    solo.locator("#form-dialog").get_by_role("button", name="Not common after all").click()
+    check("a common one can go back too (Not common after all)", solo.get_by_test_id("sort-count").inner_text() == "3")
     ctx_s.close()
 
     # Wrong key is refused

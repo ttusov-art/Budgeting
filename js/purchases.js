@@ -124,6 +124,24 @@ export function unsettle(keys) {
   save();
 }
 
+/** Purchases sorted as personal or cleared as already settled (still known in detail), newest first. */
+export function sortedAway() {
+  return Object.values(inbox)
+    .filter((tx) => tx.description && ['personal', 'settled'].includes(statusOf(tx)))
+    .sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
+}
+
+/** Put purchases (personal or already settled) back into "To sort". The shop memory is left as it is. */
+export function backToSort(keys) {
+  for (const key of keys) {
+    const tx = inbox[key];
+    if (!tx) continue;
+    tx.personal = false;
+    delete tx.settled;
+  }
+  save();
+}
+
 /** Common purchase typed in by hand (cash, or missing from the export). */
 export function addManual({ date, description, amount }) {
   state.put({
