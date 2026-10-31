@@ -245,10 +245,12 @@ kbd {
   border: 0; background: none; text-align: left; padding: 4px 2px; border-radius: 8px;
 }
 .row-btn:hover { background: var(--surface-2); }
-.row .grow { flex: 1; min-width: 0; }
-.row .title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.row .grow br { display: none; }
+/* Titles wrap onto a second line instead of running under the amount. */
+.row .title { font-weight: 600; overflow-wrap: anywhere; line-height: 1.3; }
 .row .sub { font-size: 0.82rem; color: var(--ink-soft); }
-.row .amount { font-family: var(--num); font-weight: 650; white-space: nowrap; }
+.row .amount { flex: none; margin-left: auto; padding-left: 8px; text-align: right; font-weight: 650; white-space: nowrap; }
 .row.is-paid .title { text-decoration: line-through; color: var(--ink-soft); }
 
 .check {

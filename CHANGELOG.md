@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-31 f
+- Android status and navigation bars now match the app background (no bright green edges).
+- Entry titles wrap instead of running under the amount.
+
 ## 2026-10-31 e
 - Version shown at the top of the Wallet page.
 - "Add purchase" removed: check-ins use the actual Revolut balance.

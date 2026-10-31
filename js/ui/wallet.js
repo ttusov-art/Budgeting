@@ -112,26 +112,30 @@ function entriesCard(checkins, topups, startBalance) {
   const s = state.getSettings();
   const rows = entries.map((e) => {
     const who = s.initials[e.by] || '';
+    // Short title left, one main number right, details on the small line below.
+    const details = [shortDateLabel(e.date), who];
     let badge;
     let title;
     let amount;
     if (e.kind === 'topup') {
       badge = '+';
-      title = `${esc(s.names[e.person] || '?')} added money${e.note ? ': ' + esc(e.note) : ''}`;
+      title = `${esc(s.names[e.person] || '?')} added money`;
       amount = `+${formatCents(e.amount)}`;
+      if (e.note) details.push(e.note);
     } else if (e.balance != null) {
       badge = '✓';
-      title = `Balance ${formatCents(e.balance)}`;
-      amount = `${formatCents(checkinSpent(e, startBalance, topups))} spent`;
+      title = 'Balance';
+      amount = formatCents(e.balance);
+      details.push(`${formatCents(checkinSpent(e, startBalance, topups))} spent`);
     } else {
       badge = '✓';
-      title = 'Check-in (old style): spent so far';
+      title = 'Spent so far (old check-in)';
       amount = formatCents(e.spent);
     }
     return `<li class="row">
       <button class="row-btn" data-edit="${esc(e.id)}">
         <span class="badge">${badge}</span>
-        <span class="grow"><span class="title">${title}</span><br><span class="sub">${esc(shortDateLabel(e.date))}${who ? ' · entered by ' + esc(who) : ''}</span></span>
+        <span class="grow"><span class="title">${title}</span><span class="sub">${esc(details.filter(Boolean).join(' · '))}</span></span>
         <span class="amount">${amount}</span>
       </button></li>`;
   }).join('');

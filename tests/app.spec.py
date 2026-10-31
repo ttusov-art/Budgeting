@@ -150,9 +150,11 @@ def run(p):
     page.locator('#form-dialog [name="balance"]').fill("50")
     page.locator('#form-dialog [name="balance"]').press("Enter")
     check("second check-in: balance 50 € → 880 € spent, remaining 50 €", "50,00" in page.get_by_test_id("remaining").inner_text() and "880,00" in page.locator("main").inner_text())
-    page.locator(".row-btn", has_text="Balance 50,00 €").click()
+    page.locator(".row-btn", has_text="Balance").filter(has_text="50,00").click()
     page.locator("#form-dialog").get_by_role("button", name="Delete").click()
     check("deleting it brings back the first check-in", "59,61" in page.get_by_test_id("remaining").inner_text())
+    meta = page.evaluate("[...document.querySelectorAll('meta[name=theme-color]')].map(m => m.content + ' ' + m.media)")
+    check("status bar colour follows light/dark background, not green", all("#2f6b4f" not in m for m in meta) and len(meta) == 2)
     check("version is shown on the wallet page", "2026-" in page.get_by_test_id("version").inner_text())
     check("no Add purchase button any more", page.get_by_role("button", name=re.compile("Add purchase")).count() == 0)
 
@@ -174,6 +176,12 @@ def run(p):
     for w in (340, 360):
         page.set_viewport_size({"width": w, "height": 800})
         page.wait_for_timeout(100)
+        overlaps = page.evaluate("""() => [...document.querySelectorAll('.row-btn')].filter(b => {
+            const t = b.querySelector('.title').getBoundingClientRect();
+            const a = b.querySelector('.amount').getBoundingClientRect();
+            return t.right > a.left + 1;
+        }).length""")
+        check(f"entry titles don't run under the amounts at {w}px", overlaps == 0)
         overflow = page.evaluate("document.documentElement.scrollWidth > window.innerWidth")
         check(f"no horizontal scroll at {w}px (wallet)", not overflow)
         page.screenshot(path=str(SHOTS / f"phone-{w}-wallet.png"), full_page=True)
@@ -319,7 +327,7 @@ def run(p):
     tonis.keyboard.press("Control+s")
     expect(tonis.get_by_test_id("balance-line")).to_contain_text(re.compile(r"45,00\s€ topped up"), timeout=5000)
     check("Tõnis's phone receives Kristiina's top-up (auto-sync)", True)
-    check("entry shows who added it (Kristiina, entered by KM)", "Kristiina added money" in tonis.locator(".list").inner_text() and "KM" in tonis.locator(".list").inner_text())
+    check("entry shows who added it (Kristiina, KM)", "Kristiina added money" in tonis.locator(".list").inner_text() and "KM" in tonis.locator(".list").inner_text())
 
     # Delete on one phone travels to the other
     tonis.get_by_text("Market week").click()
