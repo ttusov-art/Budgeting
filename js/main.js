@@ -310,7 +310,7 @@ async function takeSharedStatements() {
 function importShared(texts) {
   location.hash = 'buys';
   if (!texts.length) {
-    toast('No statement file arrived. Choose CSV as the format in Revolut and share the file.');
+    toast('No statement file arrived. Choose CSV as the format in Revolut and share the file.', undefined, 'sticky');
     return;
   }
   texts.forEach((t) => purchasesView.importText(t, ctx()));

@@ -237,7 +237,7 @@ async function importFile(input) {
 export function importText(text, ctx) {
   const r = purchases.importCsv(text, { month: ctx.month });
   if (r.error) {
-    toast(r.error);
+    toast(r.error, undefined, 'sticky');
     return;
   }
   const parts = [`${r.added} new purchase${r.added === 1 ? '' : 's'} in ${monthLabel(ctx.month)}`];
@@ -260,7 +260,7 @@ export function importText(text, ctx) {
       ctx.setMonth(next);
       importText(text, { ...ctx, month: next });
     },
-  } : undefined, 8000);
+  } : undefined, 'sticky');
 }
 
 /** Today, or the last day of the chosen month when looking at an earlier month. */

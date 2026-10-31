@@ -36,20 +36,41 @@ export function payerOptions() {
 }
 
 let toastTimer = null;
-/** Short message at the bottom; optional action button (e.g. Undo). */
+/**
+ * Short message at the bottom; optional action button (e.g. Undo).
+ * It stays long enough to read (longer messages stay longer).
+ * ms: 'sticky' keeps it until OK is tapped, e.g. for import results.
+ */
 export function toast(message, action, ms = null) {
   const el = document.getElementById('toast');
   el.innerHTML = `<span>${esc(message)}</span>`;
+  const hide = () => {
+    clearTimeout(toastTimer);
+    el.classList.remove('show');
+  };
+  const buttons = document.createElement('span');
+  buttons.className = 'toast-buttons';
   if (action) {
     const btn = document.createElement('button');
     btn.textContent = action.label;
     btn.addEventListener('click', () => {
+      hide();
       action.run();
-      el.classList.remove('show');
     });
-    el.appendChild(btn);
+    buttons.appendChild(btn);
   }
+  if (ms === 'sticky') {
+    const ok = document.createElement('button');
+    ok.textContent = 'OK';
+    ok.dataset.act = 'toast-ok';
+    ok.addEventListener('click', hide);
+    buttons.appendChild(ok);
+  }
+  if (buttons.childElementCount) el.appendChild(buttons);
   el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), ms || (action ? 5000 : 2500));
+  if (ms === 'sticky') return;
+  // About 15 characters a second, plus time to notice it.
+  const readingTime = 1500 + message.length * 65;
+  toastTimer = setTimeout(hide, Math.max(ms || 0, action ? 6000 : 2500, readingTime));
 }

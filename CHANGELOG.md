@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-31 zg
+- Import results stay on screen until you tap OK. Other messages stay longer when they are longer.
+
 ## 2026-10-31 zf
 - Open Revolut now opens the Revolut app directly (via revolut.com/app, which the app catches) instead of the Play Store.
 

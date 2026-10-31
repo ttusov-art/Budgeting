@@ -608,6 +608,8 @@ def run(p):
     tonis.set_input_files("#csv-file", str(FIX / "revolut-month-end.csv"))
     expect(tonis.locator("#toast")).to_contain_text("1 new purchase in October 2026", timeout=3000)
     check("other month's purchases are left out and named", "2 from September 2026 left out" in tonis.locator("#toast").inner_text())
+    tonis.wait_for_timeout(9000)
+    check("import result stays until it is read (still there after 9 s)", tonis.locator("#toast.show").count() == 1)
     check("only October's purchase waits in To sort", tonis.get_by_test_id("sort-count").inner_text() == "1")
     tonis.locator("#toast button", has_text="Import September").click()
     expect(tonis.locator("#month-title")).to_have_text("September 2026", timeout=2000)
