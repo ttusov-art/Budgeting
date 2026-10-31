@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 
 import { parseCents, formatCents, centsToInput } from '../js/lib/money.js';
 import { addMonths, monthsBetween, daysInMonth, daysElapsed } from '../js/lib/months.js';
-import { spreadSharesForMonth, monthPlan, spentSoFar, walletPace } from '../js/lib/budget.js';
+import { spreadSharesForMonth, monthPlan, spentSoFar, walletPace, walletStartBalance } from '../js/lib/budget.js';
 import { mergeRecords } from '../js/lib/merge.js';
 
 test('parseCents understands German and English number styles', () => {
@@ -99,6 +99,23 @@ test('spent so far: latest check-in plus purchases after it', () => {
   assert.equal(r.spent, 43550);
   assert.equal(r.purchasesSince, 1);
   assert.equal(spentSoFar([], purchases).spent, 3549);
+});
+
+test('balance check-ins: spent = start − balance, a second check-in does not stack', () => {
+  const checkins = [
+    { date: '2026-10-07', createdAt: 'a', balance: 70000 },
+    { date: '2026-10-14', createdAt: 'b', balance: 52000 },
+  ];
+  const purchases = [{ date: '2026-10-16', createdAt: 'c', amount: 1500 }];
+  const r = spentSoFar(checkins, purchases, 93000);
+  assert.equal(r.spent, 41000 + 1500);
+});
+
+test('wallet start: deposits + carry-over − paid wallet costs', () => {
+  const fixed = [{ amount: 2000, payer: 'wallet', paid: true }, { amount: 500, payer: 'wallet', paid: false }];
+  const plan = monthPlan({ fixed, spreadShares: [], walletBudget: 10000, incomes: { t: 50000, k: 50000 } });
+  assert.equal(plan.walletIn, 12500);
+  assert.equal(walletStartBalance({ plan, carryOver: 3000, fixed }), 12500 + 3000 - 2000);
 });
 
 test('wallet pace matches the sheet logic', () => {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-31 c
+- Check-ins now record the **balance left in the wallet**; spent = start balance − balance. A new check-in replaces the previous one instead of mixing totals.
+- Month: optional "Left in the wallet from last month"; the summary shows what the wallet starts the month with.
+- Older "spent so far" check-ins are still understood.
+
 ## 2026-10-31 b
 - Salaries per month: the leftover of both salaries (after fixed costs, big costs and the wallet) is split evenly as private money; deposits follow from that.
 - Each salary syncs as its own record, so both phones can enter theirs at the same time.

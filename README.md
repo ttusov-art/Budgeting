@@ -18,7 +18,9 @@ Every month you enter both salaries, agree on the wallet size, and list the fixe
   Together the two deposits always equal the wallet budget (plus any costs paid from the wallet).
   A negative deposit means that person gets that amount back.
 - **Pace** = spent so far ÷ (wallet budget × days elapsed ÷ days in month). Below 100 % = under plan.
-- **Spent so far** = the latest check-in + purchases logged after it.
+- **Check-in** = the balance left in the wallet. Spent = start balance − balance, where the start balance is
+  the deposits + anything left over from last month − fixed costs paid from the wallet (ticked as paid).
+- **Spent so far** = spent at the latest check-in + purchases logged after it.
 - **Big costs**: a one-off purchase is spread evenly over N months; a recurring bill (yearly,
   half-yearly, quarterly) sets aside amount ÷ period every month. The share counts as paid by
   whoever pays the bill.

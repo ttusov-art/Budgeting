@@ -7,6 +7,7 @@
 import * as storage from './storage.js';
 import { mergeRecords } from './lib/merge.js';
 import { addMonths } from './lib/months.js';
+import { monthPlan, spreadSharesForMonth, walletStartBalance } from './lib/budget.js';
 
 let records = storage.loadRecords();
 let dirty = storage.loadDirty();
@@ -195,6 +196,16 @@ export function getIncomes(key) {
 
 export function setIncome(key, person, cents) {
   put({ id: `income:${key}:${person}`, type: 'income', month: key, person, amount: cents });
+}
+
+/** Everything calculated for one month: the plan and the wallet's start balance. */
+export function planFor(key) {
+  const m = getMonth(key) || { walletBudget: 0 };
+  const fixed = fixedFor(key);
+  const spreadShares = spreadSharesForMonth(getSpreads(), key);
+  const plan = monthPlan({ fixed, spreadShares, walletBudget: m.walletBudget || 0, incomes: getIncomes(key) });
+  const startBalance = walletStartBalance({ plan, carryOver: m.carryOver || 0, fixed });
+  return { m, fixed, spreadShares, plan, startBalance };
 }
 
 export const fixedFor = (key) => live('fixed').filter((r) => r.month === key).sort(byOrder);

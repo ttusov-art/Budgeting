@@ -1,8 +1,8 @@
 // Wallet screen: how the everyday spending is going this month.
-// Weekly check-ins ("spent so far") plus optional single purchases.
+// Weekly check-ins (balance left in the wallet) plus optional single purchases.
 
 import * as state from '../state.js';
-import { spentSoFar, walletPace } from '../lib/budget.js';
+import { spentSoFar, walletPace, checkinSpent } from '../lib/budget.js';
 import { formatCents, formatCentsWhole } from '../lib/money.js';
 import { dateKeyOf, shortDateLabel, monthLabel, daysInMonth } from '../lib/months.js';
 import { esc, toast } from './dom.js';
@@ -10,11 +10,11 @@ import { openForm } from './form.js';
 
 export function render(main, ctx) {
   const { month, todayKey } = ctx;
-  const m = state.getMonth(month);
-  const budget = m ? m.walletBudget || 0 : 0;
+  const { m, startBalance } = state.planFor(month);
+  const budget = m.walletBudget || 0;
   const checkins = state.checkinsFor(month);
   const purchases = state.purchasesFor(month);
-  const { spent, lastCheckin, purchasesSince } = spentSoFar(checkins, purchases);
+  const { spent, lastCheckin, purchasesSince } = spentSoFar(checkins, purchases, startBalance);
 
   if (!budget) {
     main.innerHTML = `
@@ -25,7 +25,7 @@ export function render(main, ctx) {
           and next month you can copy it.</p>
           <a class="btn primary" href="#month">Set up the month</a>
         </section>
-        ${entriesCard(checkins, purchases)}
+        ${entriesCard(checkins, purchases, startBalance)}
       </div>`;
     bindEntries(main);
     return;
@@ -43,7 +43,8 @@ export function render(main, ctx) {
   const pacePct = p.elapsed > 0 ? `${(p.pace * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 })} % of the planned pace so far` : '';
 
   const lastText = lastCheckin
-    ? `Last check-in ${shortDateLabel(lastCheckin.date)}: ${formatCents(lastCheckin.spent)}`
+    ? `Last check-in ${shortDateLabel(lastCheckin.date)}: `
+      + (lastCheckin.balance != null ? `${formatCents(lastCheckin.balance)} in the wallet` : `${formatCents(lastCheckin.spent)} spent`)
       + (purchasesSince ? ` + ${purchasesSince} purchase${purchasesSince > 1 ? 's' : ''} since` : '')
     : purchases.length ? `${purchases.length} purchase${purchases.length > 1 ? 's' : ''} logged, no check-in yet` : 'No check-in yet this month';
 
@@ -79,7 +80,7 @@ export function render(main, ctx) {
         </div>
       </section>
 
-      ${entriesCard(checkins, purchases)}
+      ${entriesCard(checkins, purchases, startBalance)}
     </div>`;
 
   main.querySelector('[data-act="checkin"]').addEventListener('click', () => checkIn(ctx));
@@ -91,7 +92,7 @@ function stat(k, v) {
   return `<div class="stat"><div class="k">${esc(k)}</div><div class="v num">${esc(v)}</div></div>`;
 }
 
-function entriesCard(checkins, purchases) {
+function entriesCard(checkins, purchases, startBalance) {
   const entries = [
     ...checkins.map((c) => ({ ...c, kind: 'checkin' })),
     ...purchases.map((p) => ({ ...p, kind: 'purchase' })),
@@ -100,8 +101,18 @@ function entriesCard(checkins, purchases) {
   const s = state.getSettings();
   const rows = entries.map((e) => {
     const who = s.initials[e.by] || '';
-    const title = e.kind === 'checkin' ? 'Check-in: spent so far' : esc(e.note || 'Purchase');
-    const amount = e.kind === 'checkin' ? formatCents(e.spent) : formatCents(e.amount);
+    let title;
+    let amount;
+    if (e.kind === 'checkin' && e.balance != null) {
+      title = `Check-in: ${formatCents(e.balance)} in the wallet`;
+      amount = `${formatCents(checkinSpent(e, startBalance))} spent`;
+    } else if (e.kind === 'checkin') {
+      title = 'Check-in: spent so far';
+      amount = formatCents(e.spent);
+    } else {
+      title = esc(e.note || 'Purchase');
+      amount = formatCents(e.amount);
+    }
     return `<li class="row">
       <button class="row-btn" data-edit="${esc(e.id)}" data-kind="${e.kind}">
         <span class="badge">${e.kind === 'checkin' ? '✓' : '+'}</span>
@@ -133,11 +144,14 @@ function defaultDate(ctx) {
 }
 
 export async function checkIn(ctx, existing = null) {
+  const month = existing ? existing.month : ctx.month;
+  const start = state.planFor(month).startBalance;
   const values = await openForm({
     title: existing ? 'Edit check-in' : 'Weekly check-in',
     fields: [
-      { name: 'spent', label: 'Spent so far this month', type: 'money', required: true, value: existing?.spent ?? null, autofocus: true,
-        hint: 'Total spent from the wallet since the start of the month. Purchases logged before this date are counted in it.' },
+      { name: 'balance', label: 'Balance left in the wallet', type: 'money', required: true, allowNegative: true,
+        value: existing ? (existing.balance ?? (start - (existing.spent || 0))) : null, autofocus: true,
+        hint: `The wallet started ${monthLabel(month)} with ${formatCents(start)}. The difference counts as spent.` },
       { name: 'date', label: 'As of', type: 'date', required: true, value: existing?.date ?? defaultDate(ctx) },
     ],
     deleteLabel: existing ? 'Delete' : null,
@@ -150,7 +164,7 @@ export async function checkIn(ctx, existing = null) {
   }
   state.put({
     id: existing?.id || state.newId('ci'), type: 'checkin',
-    month: values.date.slice(0, 7), date: values.date, spent: values.spent,
+    month: values.date.slice(0, 7), date: values.date, balance: values.balance, spent: null,
     createdAt: existing?.createdAt || new Date().toISOString(),
   });
   toast(existing ? 'Check-in updated' : 'Checked in');

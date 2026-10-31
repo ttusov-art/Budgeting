@@ -95,12 +95,35 @@ export function monthPlan({ fixed, spreadShares, walletBudget, incomes }) {
 }
 
 /**
- * Spent so far in the wallet for one month.
- * A check-in says "this much is spent this month, as of this date".
- * Purchases logged after the latest check-in are added on top;
- * purchases before it are assumed to be included in the check-in.
+ * What the wallet holds at the start of the month:
+ * the deposits + anything carried over from last month
+ * − fixed costs paid out of the wallet (only those ticked as paid).
+ * Big-cost shares paid "from the wallet" are a reserve that stays in it,
+ * so they are part of the deposits and don't need subtracting.
  */
-export function spentSoFar(checkins, purchases) {
+export function walletStartBalance({ plan, carryOver, fixed }) {
+  const paidFromWallet = fixed
+    .filter((f) => f.payer === 'wallet' && f.paid)
+    .reduce((a, f) => a + f.amount, 0);
+  return plan.walletIn + (carryOver || 0) - paidFromWallet;
+}
+
+/**
+ * Spent at one check-in. A check-in records the balance left in the
+ * wallet; spent = start balance − balance. (Older check-ins that stored
+ * "spent so far" directly are still understood.)
+ */
+export function checkinSpent(checkin, startBalance) {
+  if (checkin.balance !== undefined && checkin.balance !== null) return startBalance - checkin.balance;
+  return checkin.spent || 0;
+}
+
+/**
+ * Spent so far in the wallet for one month.
+ * The latest check-in gives the spending up to its date; purchases logged
+ * after it are added on top (purchases before it are already in the balance).
+ */
+export function spentSoFar(checkins, purchases, startBalance = 0) {
   const byTime = (a, b) => (a.date + (a.createdAt || '')).localeCompare(b.date + (b.createdAt || ''));
   const sortedCheckins = [...checkins].sort(byTime);
   const last = sortedCheckins[sortedCheckins.length - 1];
@@ -109,7 +132,7 @@ export function spentSoFar(checkins, purchases) {
 
   const after = purchases.filter((p) => byTime(p, last) > 0);
   return {
-    spent: last.spent + sum(after.map((p) => p.amount)),
+    spent: checkinSpent(last, startBalance) + sum(after.map((p) => p.amount)),
     lastCheckin: last,
     purchasesSince: after.length,
   };

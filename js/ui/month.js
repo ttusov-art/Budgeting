@@ -2,7 +2,6 @@
 // each person's private money and deposit into the shared wallet.
 
 import * as state from '../state.js';
-import { monthPlan, spreadSharesForMonth } from '../lib/budget.js';
 import { formatCents, parseCents, centsToInput } from '../lib/money.js';
 import { monthLabel } from '../lib/months.js';
 import { esc, payerBadge, payerOptions, toast } from './dom.js';
@@ -16,12 +15,9 @@ export function render(main, ctx) {
     return;
   }
 
-  const m = state.getMonth(month) || { walletBudget: 0 };
+  const { m, fixed, spreadShares: shares, plan, startBalance } = state.planFor(month);
   const incomes = state.getIncomes(month);
-  const fixed = state.fixedFor(month);
-  const shares = spreadSharesForMonth(state.getSpreads(), month);
   const s = state.getSettings();
-  const plan = monthPlan({ fixed, spreadShares: shares, walletBudget: m.walletBudget || 0, incomes });
   const paidCount = fixed.filter((f) => f.paid).length;
 
   main.innerHTML = `
@@ -34,6 +30,7 @@ export function render(main, ctx) {
           ${moneyField('income-t', `${s.names.t}'s salary`, incomes.t)}
           ${moneyField('income-k', `${s.names.k}'s salary`, incomes.k)}
           ${moneyField('wallet-budget', 'Wallet budget for everyday spending', m.walletBudget)}
+          ${moneyField('carry-over', 'Left in the wallet from last month (optional)', m.carryOver)}
         </div>
       </section>
 
@@ -72,13 +69,16 @@ export function render(main, ctx) {
           <tr><td>− Private money</td><td>${formatCents(plan.privateMoney.t)} / ${formatCents(plan.privateMoney.k)}</td></tr>
           <tr class="total"><td>Into the wallet</td><td>${formatCents(plan.deposit.t)} / ${formatCents(plan.deposit.k)}</td></tr>
         </table>
-        ${plan.walletPaidCosts ? `<p class="muted small" style="margin:10px 0 0">The wallet receives ${formatCents(plan.walletIn)}: the budget plus ${formatCents(plan.walletPaidCosts)} for costs paid from the wallet.</p>` : ''}
+        <p class="muted small" style="margin:10px 0 0" data-testid="wallet-start">The wallet starts the month with ${formatCents(startBalance)}${startBalance !== plan.walletBudget ? ' (deposits + carry-over − costs paid from the wallet)' : ''}. Check-ins compare the balance with this.</p>
       </section>
     </div>`;
 
   // Money fields save when you leave them (or press Enter).
   bindMoney(main, '#wallet-budget', m.walletBudget, (cents) => {
     state.put({ id: `month:${month}`, type: 'month', month, walletBudget: cents });
+  });
+  bindMoney(main, '#carry-over', m.carryOver, (cents) => {
+    state.put({ id: `month:${month}`, type: 'month', month, carryOver: cents });
   });
   for (const p of ['t', 'k']) {
     bindMoney(main, `#income-${p}`, incomes[p], (cents) => state.setIncome(month, p, cents));
