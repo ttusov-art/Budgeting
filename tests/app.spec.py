@@ -295,6 +295,13 @@ def run(p):
             return t.right > a.left + 1;
         }).length""")
         check(f"entry titles don't run under the amounts at {w}px", overlaps == 0)
+        beside = page.evaluate("""() => {
+            const pill = document.querySelector('.pace-pill'), btn = document.querySelector('.quiet-btn');
+            if (!pill || !btn) return true;
+            const p = pill.getBoundingClientRect(), b = btn.getBoundingClientRect();
+            return b.left >= p.right && b.top < p.bottom && b.bottom > p.top;
+        }""")
+        check(f"'+ Add money' sits beside the pace message at {w}px", beside)
         overflow = page.evaluate("document.documentElement.scrollWidth > window.innerWidth")
         check(f"no horizontal scroll at {w}px (wallet)", not overflow)
         page.screenshot(path=str(SHOTS / f"phone-{w}-wallet.png"), full_page=True)

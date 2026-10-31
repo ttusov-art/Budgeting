@@ -57,7 +57,7 @@ export function render(main, ctx) {
   else if (p.aheadBy >= 0) paceText = `${formatCents(p.aheadBy)} under plan`;
   else paceText = `${formatCents(-p.aheadBy)} over plan`;
   const pacePct = p.elapsed > 0 && hasData
-    ? `${(p.pace * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 })} % of the planned pace so far` : '';
+    ? `${(p.pace * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 })} % of the expected pace` : '';
 
   // What the account holds beyond the budget: carry-over and top-ups.
   const topupTotal = topups.reduce((a, t) => a + t.amount, 0);
@@ -86,11 +86,11 @@ export function render(main, ctx) {
         <div class="hero-top"><span class="label">Budget left</span>${versionTag}</div>
         <div class="big num ${budget - spent < 0 ? 'negative' : ''}" data-testid="remaining">${formatCents(budget - spent)}</div>
         <div class="muted">spent <span class="num" data-testid="spent">${formatCents(spent)}</span> of the agreed <span class="num">${formatCents(budget)}</span></div>
-        <div class="meter" role="img" aria-label="Spent ${Math.round(fillPct)} % of the budget; plan for today is ${Math.round(markPct)} %">
+        <div class="meter" role="img" aria-label="Spent ${Math.round(fillPct)} % of the budget; expected by today is ${Math.round(markPct)} %">
           <div class="meter-fill ${level === 'good' ? '' : level}" style="width:${fillPct}%"></div>
           <div class="meter-mark" style="left:calc(${markPct}% - 1px)" title="Plan for today"></div>
         </div>
-        <div class="meter-legend"><span>Day ${p.elapsed} of ${p.days}</span><span>▮ plan for today: ${formatCentsWhole(p.expected)}</span></div>
+        <div class="meter-legend"><span>Day ${p.elapsed} of ${p.days}</span><span>▮ expected by today: ${formatCentsWhole(p.expected)}</span></div>
         <div class="hero-bottom">
           <div class="pace-pill ${hasData ? level : ''}" data-testid="pace"><span>${esc(paceText)}</span>${pacePct ? `<span class="pace-sub">${esc(pacePct)}</span>` : ''}</div>
           <button class="quiet-btn" data-act="topup" title="Put personal money into the wallet (A)">+ Add money</button>
