@@ -250,7 +250,8 @@ def run(p):
         .filter(el => { const r = parseFloat(getComputedStyle(el).borderTopLeftRadius); return r > 14; })
         .map(el => el.className || el.tagName)""")
     check("no pill- or egg-shaped buttons or panels (corners ≤ 14 px)", pills == [])
-    check("version is shown on the wallet page", "2026-" in page.get_by_test_id("version").inner_text())
+    check("version is shown on the wallet page (merged with sync status)", re.search(r"v\d\d\.\d\d [a-z]", page.get_by_test_id("version").inner_text()) is not None)
+    check("the header has only the month arrows (no sync chip next to them)", page.locator("header #sync-chip").count() == 0)
     check("no Add purchase button any more", page.get_by_role("button", name=re.compile("Add purchase")).count() == 0)
 
     # Kristiina tops up 100 € of personal money; the balance rises, spending doesn't go down
@@ -414,7 +415,8 @@ def run(p):
         page.fill("#sync-url", SYNC_URL)
         page.fill("#sync-key", KEY)
         page.get_by_role("button", name="Test and save").click()
-        expect(page.locator("#sync-chip")).to_have_text(re.compile("Synced"), timeout=5000)
+        page.locator('.tabs [data-view="wallet"]').click()
+        expect(page.locator("#sync-chip")).to_contain_text("Synced", timeout=5000)
 
     connect(tonis, "Tõnis")
     connect(kris, "Kristiina")
@@ -495,9 +497,12 @@ def run(p):
     kris.locator("#form-dialog").get_by_role("button", name="Save").click()
     kris.wait_for_timeout(300)
     check("offline chip shows waiting change", "waiting" in kris.locator("#sync-chip").inner_text())
+    kris.locator('.tabs [data-view="month"]').click()
+    check("on other screens, an offline warning appears under the header", "waiting to sync" in kris.locator("#sync-alert").inner_text() and kris.locator("#sync-alert").is_visible())
+    kris.locator('.tabs [data-view="wallet"]').click()
     ctx_k.set_offline(False)
     kris.evaluate("window.dispatchEvent(new Event('online'))")
-    expect(kris.locator("#sync-chip")).to_have_text(re.compile("Synced"), timeout=5000)
+    expect(kris.locator("#sync-chip")).to_contain_text("Synced", timeout=5000)
     tonis.keyboard.press("Control+s")
     expect(tonis.get_by_test_id("remaining")).to_contain_text("700,00", timeout=5000)
     check("offline check-in arrives after reconnecting", True)

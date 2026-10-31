@@ -23,7 +23,11 @@ export function render(main, ctx) {
   const monthSettlements = settlements.filter((st) => st.month === month);
   // Something to compare with the plan: a check-in, or common purchases sorted this month.
   const hasData = Boolean(lastCheckin) || expenses.some((e) => e.month === month);
-  const versionTag = `<span class="version-tag" data-testid="version">v${esc(APP_VERSION)}</span>`;
+  // Sync status + app version in one chip (main.js fills in the status). Tap = sync now.
+  const [vDate, vLetter] = APP_VERSION.split(' ');
+  const shortVersion = `v${vDate.slice(8, 10)}.${vDate.slice(5, 7)} ${vLetter}`;
+  const versionTag = `<button class="sync-chip" id="sync-chip" data-testid="version" title="Sync now (Ctrl+S) · version ${esc(APP_VERSION)}">
+    <span class="sync-text">Sync</span><span class="chip-version"> · ${esc(shortVersion)}</span></button>`;
 
   if (!budget) {
     main.innerHTML = `

@@ -67,6 +67,7 @@ function render() {
   badge.textContent = waiting > 99 ? '99+' : String(waiting);
 
   VIEWS[view].render(main, ctx());
+  renderSyncChip(sync.getStatus());
 }
 
 main.addEventListener('focusout', () => {
@@ -80,8 +81,11 @@ function setMonth(key) {
 
 // ---------- sync status chip ----------
 
+/**
+ * Sync status: shown as a chip (with the version) on the Wallet page.
+ * On other screens it only appears, as an orange line under the header, when something is wrong.
+ */
 function renderSyncChip(status) {
-  const chip = document.getElementById('sync-chip');
   const pending = state.pendingCount();
   let text;
   switch (status.kind) {
@@ -92,9 +96,21 @@ function renderSyncChip(status) {
     case 'ok': text = status.at ? `Synced ${new Date(status.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : 'Synced'; break;
     default: text = sync.isConfigured() ? 'Sync' : 'Not synced';
   }
-  chip.textContent = text;
-  chip.dataset.kind = sync.isConfigured() ? status.kind : 'off';
-  chip.title = status.kind === 'error' ? `Sync failed: ${status.message} (Ctrl+S to retry)` : 'Sync now (Ctrl+S)';
+  const kind = sync.isConfigured() ? status.kind : 'off';
+  const title = status.kind === 'error' ? `Sync failed: ${status.message} (Ctrl+S to retry)` : 'Sync now (Ctrl+S)';
+
+  const chip = document.getElementById('sync-chip');
+  if (chip) {
+    chip.querySelector('.sync-text').textContent = text;
+    chip.dataset.kind = kind;
+    chip.title = title;
+  }
+
+  const alert = document.getElementById('sync-alert');
+  const problem = sync.isConfigured() && (status.kind === 'error' || (status.kind === 'offline' && pending > 0));
+  alert.hidden = !problem || Boolean(chip);
+  alert.textContent = status.kind === 'error' ? 'Sync failed. Tap to retry' : `Offline · ${pending} change${pending === 1 ? '' : 's'} waiting to sync`;
+  alert.title = title;
 }
 
 // ---------- actions (used by buttons and shortcuts) ----------
@@ -196,7 +212,11 @@ async function reloadFresh() {
 document.getElementById('prev-month').addEventListener('click', actions.prevMonth);
 document.getElementById('next-month').addEventListener('click', actions.nextMonth);
 document.getElementById('month-title').addEventListener('click', actions.today);
-document.getElementById('sync-chip').addEventListener('click', doSync);
+document.getElementById('sync-alert').addEventListener('click', doSync);
+// The chip is redrawn with the Wallet page, so listen on the page instead of the chip itself.
+main.addEventListener('click', (e) => {
+  if (e.target.closest('#sync-chip')) doSync();
+});
 document.getElementById('reload-btn').addEventListener('click', reloadFresh);
 
 // Which way the next screen slides in ('left', 'right' or null).

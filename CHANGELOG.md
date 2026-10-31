@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-31 t
+- Sync status moved out of the header (too close to the month arrows) into the Wallet panel, merged with the version: "● Synced 16:17 · v31.10 t". Tap to sync.
+- Other screens show an orange line under the header only when sync fails or changes wait offline.
+
 ## 2026-10-31 s
 - Screens follow the monthly routine: Month → Wallet → Purchases → Big costs → Settings (tabs, swiping, keys 1–5).
 - Opening the app starts on Month until the current month is locked, then on Wallet.
