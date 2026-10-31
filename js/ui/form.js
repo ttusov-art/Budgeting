@@ -70,6 +70,14 @@ export function openForm({ title, fields, submitLabel = 'Save', deleteLabel = nu
     applyShowIf(form, fields);
     form.addEventListener('change', () => applyShowIf(form, fields));
 
+    // Whichever field gets focus, keep it visible above the keyboard.
+    form.addEventListener('focusin', (e) => keepVisible(e.target));
+    if (window.visualViewport) {
+      const onResize = () => keepVisible(document.activeElement);
+      window.visualViewport.addEventListener('resize', onResize);
+      dlg.addEventListener('close', () => window.visualViewport.removeEventListener('resize', onResize), { once: true });
+    }
+
     dlg.showModal();
     const first = form.querySelector('[autofocus]') || form.querySelector('input:not([type="radio"]), input[type="radio"]:checked');
     if (first) {
@@ -77,6 +85,13 @@ export function openForm({ title, fields, submitLabel = 'Save', deleteLabel = nu
       if (first.select && first.type !== 'date') first.select();
     }
   });
+}
+
+/** Scroll a field into view inside the dialog (e.g. after the keyboard opened). */
+function keepVisible(el) {
+  if (!el || !dialog().contains(el) || el.tagName === 'BUTTON') return;
+  // Wait a moment: the keyboard animates in and the visible area shrinks.
+  setTimeout(() => el.scrollIntoView({ block: 'nearest', inline: 'nearest' }), 250);
 }
 
 // Fields with showIf: { field: 'kind', value: 'oneoff' } only show when that choice is picked.

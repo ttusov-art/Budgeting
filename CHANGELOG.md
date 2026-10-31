@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-31 w
+- On-screen keyboard no longer hides the form you're filling in: the app area shrinks when the keyboard opens (interactive-widget=resizes-content), forms sit at the top on phones, never get taller than the visible area (they scroll inside), and the focused field is kept in view.
+
 ## 2026-10-31 v
 - Purchases: panels in step order (1. To sort, 2. To withdraw). When everything is sorted it shows when you last sorted.
 - Reminder when the last full sort is more than 7 days ago: note on Purchases, "!" on the tab, note on Wallet. An import with nothing new counts as sorted.

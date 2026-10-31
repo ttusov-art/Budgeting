@@ -381,6 +381,12 @@ input.money { font-family: var(--num); text-align: right; }
 dialog {
   border: 0; border-radius: var(--radius); padding: 0; width: min(460px, calc(100% - 24px));
   background: var(--surface); color: var(--ink); box-shadow: 0 20px 60px rgb(0 0 0 / 30%);
+  /* Never taller than the visible area (which shrinks when the keyboard opens); scroll inside instead. */
+  max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain;
+}
+/* Phones: forms sit near the top, so the field you type in stays above the keyboard. */
+@media (max-width: 799px) {
+  dialog { margin: 12px auto auto; }
 }
 dialog::backdrop { background: rgb(15 20 17 / 45%); }
 dialog form { padding: 18px; }

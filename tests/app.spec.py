@@ -254,6 +254,19 @@ def run(p):
     check("the header has only the month arrows (no sync chip next to them)", page.locator("header #sync-chip").count() == 0)
     check("no Add purchase button any more", page.get_by_role("button", name=re.compile("Add purchase")).count() == 0)
 
+    # Keyboard open = only ~420 px visible: the form sits at the top and fits (scrolls inside)
+    page.set_viewport_size({"width": 412, "height": 420})
+    page.get_by_role("button", name=re.compile("Check in")).click()
+    box = page.locator("#form-dialog").bounding_box()
+    field = page.locator('#form-dialog [name="balance"]').bounding_box()
+    check("with the keyboard open the form starts at the top of the screen", box["y"] <= 20)
+    check("the form is never taller than the visible area", box["y"] + box["height"] <= 420 + 1)
+    check("the balance field is visible above the keyboard", field["y"] + field["height"] <= 420)
+    page.locator("#form-dialog").get_by_role("button", name="Save").scroll_into_view_if_needed()
+    check("Save can be reached by scrolling inside the form", page.locator("#form-dialog").get_by_role("button", name="Save").is_visible())
+    page.keyboard.press("Escape")
+    page.set_viewport_size({"width": 412, "height": 915})
+
     # Kristiina tops up 100 € of personal money; the balance rises, spending doesn't go down
     page.get_by_role("button", name=re.compile("Add money")).click()
     dlg = page.locator("#form-dialog")
