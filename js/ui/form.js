@@ -78,7 +78,14 @@ export function openForm({ title, fields, submitLabel = 'Save', deleteLabel = nu
       dlg.addEventListener('close', () => window.visualViewport.removeEventListener('resize', onResize), { once: true });
     }
 
+    // A thin line above the pinned buttons only when the form is scrollable.
+    const markScrolling = () => dlg.classList.toggle('is-scrolling', dlg.scrollHeight > dlg.clientHeight + 1);
+    dlg.addEventListener('scroll', markScrolling, { passive: true });
+    window.visualViewport?.addEventListener('resize', markScrolling);
+    dlg.addEventListener('close', () => window.visualViewport?.removeEventListener('resize', markScrolling), { once: true });
+
     dlg.showModal();
+    markScrolling();
     const first = form.querySelector('[autofocus]') || form.querySelector('input:not([type="radio"]), input[type="radio"]:checked');
     if (first) {
       first.focus();

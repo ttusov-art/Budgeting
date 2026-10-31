@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-31 x
+- Form buttons (Cancel/Save) are pinned to the bottom of the form, so they stay visible above the keyboard; tighter spacing in forms on phones.
+
 ## 2026-10-31 w
 - On-screen keyboard no longer hides the form you're filling in: the app area shrinks when the keyboard opens (interactive-widget=resizes-content), forms sit at the top on phones, never get taller than the visible area (they scroll inside), and the focused field is kept in view.
 
