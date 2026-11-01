@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-01 a
+- **Close down last month's wallet.** When a new month starts, the Wallet and Month screens remind you until last month is closed down. On last month's Wallet, each of you presses **Close down**: the first enters the Revolut balance at the end of the month, and each confirms that all their purchases from that month are sorted (if this phone still has unsorted purchases from that month, it sends you to Purchases first).
+- The month closes when both have closed down with the same numbers. Changing the final balance, or sorting another common purchase into that month, asks the other one to confirm again.
+- A closed month shows its final result: budget left or over, what was spent, the final balance and the carry-over into the next month.
+- After closing, that month's wallet can't change: no check-ins, added money or common purchases (also not through undo). Its purchases can still be sorted as personal or already settled, and withdrawing still works.
+- Reopening needs both, the same way as unlocking a budget.
+
 ## 2026-10-31 zk
 - A tiny vibration (8 ms) when tapping buttons on Android. Can be switched off per phone in Settings → This phone belongs to.
 

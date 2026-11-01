@@ -220,34 +220,70 @@ function sum(list) {
  * big-cost shares. Ticking costs as paid doesn't change it.
  */
 export function budgetFingerprint({ fixed, incomes, walletBudget, carryOver, spreadShares }) {
-  const data = JSON.stringify({
+  return hashText(JSON.stringify({
     f: fixed.map((c) => [c.name, c.amount, c.payer]).sort(),
     i: [incomes.t || 0, incomes.k || 0],
     w: walletBudget || 0,
     c: carryOver || 0,
     s: spreadShares.map((x) => [x.name, x.amount, x.payer]).sort(),
-  });
+  }));
+}
+
+/**
+ * Fingerprint of a month's final result, agreed when closing down the wallet:
+ * the final balance, its date and what was spent. Sorting another common
+ * purchase into the month or changing the balance gives a new fingerprint.
+ */
+export function closeFingerprint({ finalBalance, finalDate, spent }) {
+  return hashText(JSON.stringify([finalBalance, finalDate, spent]));
+}
+
+// Short text hash (djb2). Not for security: only to notice that numbers changed.
+function hashText(data) {
   let h = 5381;
   for (let i = 0; i < data.length; i++) h = ((h * 33) ^ data.charCodeAt(i)) >>> 0;
   return h.toString(36);
 }
 
 /**
+ * What two people's votes mean for something both must agree on
+ * (locking a budget, closing down a month's wallet).
+ * done:  is it locked / closed now?
+ * votes: { t: { want, fp } | null, k: … } with want = `on` or `off`
+ * Returns { action: 'on' | 'off' | null, status: { t, k } } where status is
+ * 'approved' | 'stale' (approved other numbers) | 'waiting' | `off` (asked to undo it).
+ */
+export function pairDecision({ done, votes, currentFp, on, off }) {
+  const status = {};
+  for (const p of ['t', 'k']) {
+    const v = votes[p];
+    if (done) status[p] = v && v.want === off ? off : 'waiting';
+    else if (!v || v.want !== on) status[p] = 'waiting';
+    else status[p] = currentFp != null && v.fp === currentFp ? 'approved' : 'stale';
+  }
+  let action = null;
+  if (!done && status.t === 'approved' && status.k === 'approved') action = 'on';
+  if (done && status.t === off && status.k === off) action = 'off';
+  return { action, status };
+}
+
+/**
  * What the two votes mean for the lock.
- * votes: { t: { want: 'lock'|'unlock', fp } | null, k: … }
  * Returns { action: 'lock' | 'unlock' | null, status: { t, k } } where status is
  * 'approved' | 'stale' (approved other numbers) | 'waiting' | 'unlock' (asked to unlock).
  */
 export function lockDecision({ locked, votes, currentFp }) {
-  const status = {};
-  for (const p of ['t', 'k']) {
-    const v = votes[p];
-    if (locked) status[p] = v && v.want === 'unlock' ? 'unlock' : 'waiting';
-    else if (!v || v.want !== 'lock') status[p] = 'waiting';
-    else status[p] = v.fp === currentFp ? 'approved' : 'stale';
-  }
-  let action = null;
-  if (!locked && status.t === 'approved' && status.k === 'approved') action = 'lock';
-  if (locked && status.t === 'unlock' && status.k === 'unlock') action = 'unlock';
-  return { action, status };
+  const { action, status } = pairDecision({ done: locked, votes, currentFp, on: 'lock', off: 'unlock' });
+  return { action: action === 'on' ? 'lock' : action === 'off' ? 'unlock' : null, status };
+}
+
+/**
+ * What the two votes mean for closing down a month's wallet.
+ * Returns { action: 'close' | 'reopen' | null, status: { t, k } } where status is
+ * 'approved' (closed down) | 'stale' (closed down with other numbers) | 'waiting' | 'reopen'.
+ * Without a final balance (currentFp null) nobody's close-down counts yet.
+ */
+export function closeDecision({ closed, votes, currentFp }) {
+  const { action, status } = pairDecision({ done: closed, votes, currentFp, on: 'close', off: 'reopen' });
+  return { action: action === 'on' ? 'close' : action === 'off' ? 'reopen' : null, status };
 }

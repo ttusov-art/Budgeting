@@ -113,12 +113,18 @@ export function toSortElsewhere(month) {
   return out;
 }
 
-/** Mark one transaction as 'common' or 'personal' (or back to 'new'). */
+/**
+ * Mark one transaction as 'common' or 'personal' (or back to 'new').
+ * Returns false when it can't change: already withdrawn, or its month is closed
+ * (a closed month's purchases can only be personal or already settled).
+ */
 export function choose(key, choice, { remember = true } = {}) {
   const tx = inbox[key];
-  if (!tx) return;
+  if (!tx) return false;
   const existing = state.allRecords()[expenseId(key)];
-  if (existing && !existing.deleted && existing.settlementId) return; // already withdrawn: fixed
+  if (existing && !existing.deleted && existing.settlementId) return false; // already withdrawn: fixed
+  const isCommon = existing && !existing.deleted;
+  if (state.isClosed(tx.date.slice(0, 7)) && (choice === 'common' || isCommon)) return false;
 
   if (choice === 'common') {
     tx.personal = false;
@@ -133,6 +139,7 @@ export function choose(key, choice, { remember = true } = {}) {
   }
   if (remember && choice !== 'new') shops[merchantKey(tx.description)] = choice;
   save();
+  return true;
 }
 
 /** Apply the remembered choice to every unsorted transaction that has one. Returns how many. */
@@ -140,10 +147,7 @@ export function acceptSuggestions(month = null) {
   let n = 0;
   for (const tx of toSort(month)) {
     const s = suggestionFor(tx);
-    if (s) {
-      choose(tx.key, s, { remember: false });
-      n++;
-    }
+    if (s && choose(tx.key, s, { remember: false })) n++;
   }
   return n;
 }
@@ -185,13 +189,14 @@ export function backToSort(keys) {
   save();
 }
 
-/** Common purchase typed in by hand (cash, or missing from the export). */
+/** Common purchase typed in by hand (cash, or missing from the export). False if its month is closed. */
 export function addManual({ date, description, amount }) {
-  state.put({
+  if (state.isClosed(date.slice(0, 7))) return false;
+  return state.put({
     id: state.newId('ex'), type: 'expense', month: date.slice(0, 7), date,
     createdAt: new Date().toISOString(), description, amount,
     person: state.getDevice().me, settlementId: null, source: 'manual',
-  });
+  }).length > 0;
 }
 
 /** The inbox entry behind a shared expense on this phone, if any. */

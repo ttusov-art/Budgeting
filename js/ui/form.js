@@ -178,6 +178,7 @@ function readValues(form, fields) {
         v = raw;
       }
     }
+    if (f.required && f.type === 'checkbox' && !v) return { error: `Please tick: ${f.label}.` };
     if (f.required && (v === null || v === '')) return { error: `${f.label} is needed.` };
     values[f.name] = v;
   }

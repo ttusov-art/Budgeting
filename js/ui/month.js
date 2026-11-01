@@ -6,12 +6,15 @@ import { formatCents, parseCents, centsToInput } from '../lib/money.js';
 import { monthLabel } from '../lib/months.js';
 import { esc, payerBadge, payerOptions, toast } from './dom.js';
 import { openForm } from './form.js';
+import * as closedown from './closedown.js';
 
 export function render(main, ctx) {
   const { month } = ctx;
 
+  const reminder = closedown.reminderHtml(ctx);
   if (!state.monthIsSetUp(month)) {
-    renderStart(main, month);
+    renderStart(main, month, reminder);
+    closedown.bindReminder(main, ctx);
     return;
   }
 
@@ -25,7 +28,7 @@ export function render(main, ctx) {
   const locked = Boolean(m.locked);
 
   main.innerHTML = `
-    <div class="stack">
+    <div class="stack">${reminder}
       <section class="card">
         <div class="card-head">
           <h2>Fixed costs <span class="muted small">${paidCount}/${fixed.length} paid</span></h2>
@@ -90,6 +93,7 @@ export function render(main, ctx) {
     });
   });
 
+  closedown.bindReminder(main, ctx);
   if (locked) {
     bindTracking(main, month);
     return;
@@ -207,7 +211,9 @@ function bindMoney(main, selector, oldCents, save, emptyMeans = 0) {
 }
 
 function carryField(carry, locked = false) {
-  const autoText = carry.auto
+  const autoText = carry.auto && state.isClosed(carry.prevKey)
+    ? `Automatic: ${formatCents(carry.auto.balance)}, the final balance of ${monthLabel(carry.prevKey)} (closed down).`
+    : carry.auto
     ? `Automatic: ${formatCents(carry.auto.balance)} from the last check-in of ${monthLabel(carry.prevKey)} (${carry.auto.date.slice(8)}.${carry.auto.date.slice(5, 7)}.).`
     : `Automatic: nothing, no check-in in ${monthLabel(carry.prevKey)}.`;
   return `<div class="inline-field">
@@ -272,10 +278,10 @@ function fixedRow(f, locked) {
   </li>`;
 }
 
-function renderStart(main, month) {
+function renderStart(main, month, reminder = '') {
   const prev = state.previousSetUpMonth(month);
   main.innerHTML = `
-    <div class="stack">
+    <div class="stack">${reminder}
       <section class="card">
         <h2>Start ${esc(monthLabel(month))}</h2>
         <p class="muted">${prev

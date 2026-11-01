@@ -39,6 +39,12 @@ Every month you enter both salaries, agree on the wallet size, and list the fixe
   import, where they count in the month they were paid.
   On Android, a statement generated in Revolut can be shared straight to the app (share target /
   file handler in the manifest; the service worker hands the file to the Purchases screen).
+- **Close down**: when a new month starts, both close down last month's wallet on its Wallet screen.
+  The first enters the Revolut balance at the end of the month (the *final balance*), and each confirms all their
+  purchases from that month are sorted. When both agree on the same numbers, the month is **closed**: its final
+  result (spent vs. budget, final balance = carry-over) is kept, and its check-ins, added money and common purchases
+  can't change any more. Its purchases can still be sorted as personal or already settled, and withdrawing still works.
+  Reopening needs both, like unlocking.
 - **Big costs**: a one-off purchase is spread evenly over N months; a recurring bill (yearly,
   half-yearly, quarterly) sets aside amount ÷ period every month. The share counts as paid by
   whoever pays the bill.
@@ -50,7 +56,7 @@ In the order of the monthly routine. The app opens on Month until the month is l
 | Screen | What it does |
 | --- | --- |
 | Month | Fixed costs (tick when paid), salaries, wallet budget, carry-over, big costs, **lock the budget** (both approve), transfers to the wallet (tap when done), private money, summary; "copy last month" |
-| Wallet | Budget left, pace vs. plan, daily/weekly figures, check-ins, added money and withdrawals; app version |
+| Wallet | Budget left, pace vs. plan, daily/weekly figures, check-ins, added money and withdrawals; app version. For a past month: **close down** (both), then the final result |
 | Purchases | Helper for the check-in, in steps: 1. import and sort, 2. withdraw; reminds after 7 days without sorting. Import the Revolut CSV, sort purchases into common/personal (with suggestions per shop), withdraw the common total; "Already settled before…" clears old purchases without affecting suggestions; recent withdrawals |
 | Big costs | Spread purchases and recurring bills |
 | Settings | Names, whose phone, sync, backup, shortcuts, privacy |
@@ -92,6 +98,7 @@ js/lib/months.js       month keys like "2026-10"
 js/lib/budget.js       deposits, big-cost shares, pace (pure functions)
 js/lib/merge.js        merging records from two phones
 js/ui/*.js             one file per screen + form dialog, shortcuts, helpers
+js/ui/closedown.js     closing down last month's wallet (card, result, reminder)
 apps-script/Code.gs    the backend you paste into the Google Sheet
 sw.js, manifest.webmanifest, icons/   offline start and "Add to Home screen"
 tests/                 unit tests + Playwright end-to-end tests (made-up data)
@@ -100,7 +107,7 @@ tests/                 unit tests + Playwright end-to-end tests (made-up data)
 ### Data model
 
 Everything is a flat list of **records**, each with `id`, `type`, `updatedAt`, `deleted`, `by`:
-`settings`, `month` (wallet budget), `income` (one per person per month, so both phones can enter theirs at once), `fixed`, `spread`, `checkin` (balance), `topup` (money added), `transfer` (deposit done, one per person per month), `lockvote` (each person's approval or unlock request, with a fingerprint of the approved numbers), `expense` (a common purchase paid with private money), `settlement` (a withdrawal from the pocket, with the months it covers). Imported bank transactions and the per-shop memory are kept only on the phone (`hb.inbox`, `hb.shops`), never synced. Amounts are whole
+`settings`, `month` (wallet budget), `income` (one per person per month, so both phones can enter theirs at once), `fixed`, `spread`, `checkin` (balance), `topup` (money added), `transfer` (deposit done, one per person per month), `lockvote` (each person's approval or unlock request, with a fingerprint of the approved numbers), `closevote` (each person's close-down or reopen request, with a fingerprint of the final result; the final balance is a `checkin` with `final: true`, and a closed month has `closed` and `closedResult` on its `month` record), `expense` (a common purchase paid with private money), `settlement` (a withdrawal from the pocket, with the months it covers). Imported bank transactions and the per-shop memory are kept only on the phone (`hb.inbox`, `hb.shops`), never synced. Amounts are whole
 cents. Deleting marks a record `deleted` so the deletion can reach the other phone. When both phones
 changed the same record, the newer change wins.
 
@@ -110,6 +117,7 @@ changed the same record, the newer change wins.
 node --test tests/lib.test.mjs     # logic
 python3 tests/app.spec.py          # app on Pixel 7 + 1366 px laptop, incl. two-phone sync (fake Sheet)
 python3 tests/update.spec.py       # a new version arrives on reload despite GitHub's caching
+python3 tests/close.spec.py        # closing down last month on two phones, reopening
 ```
 
 Test data in `tests/fixtures/` is made up.

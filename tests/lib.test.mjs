@@ -357,3 +357,37 @@ test('custom statement: a payment without a balance yet (pending) is left out un
   assert.equal(done.transactions.length, 1);
   assert.equal(done.transactions[0].date, '2026-10-31');
 });
+
+// ---------- closing down a month ----------
+import { closeDecision, closeFingerprint } from '../js/lib/budget.js';
+
+test('closing down needs both, with the same final result', () => {
+  const fp = closeFingerprint({ finalBalance: 12000, finalDate: '2026-10-31', spent: 81000 });
+  const v = (want, f = fp) => ({ want, fp: f });
+  assert.equal(closeDecision({ closed: false, votes: { t: v('close'), k: null }, currentFp: fp }).action, null);
+  assert.deepEqual(closeDecision({ closed: false, votes: { t: v('close'), k: null }, currentFp: fp }).status, { t: 'approved', k: 'waiting' });
+  assert.equal(closeDecision({ closed: false, votes: { t: v('close'), k: v('close') }, currentFp: fp }).action, 'close');
+  // One closed down with another balance → needs to confirm again, nothing happens.
+  const other = closeFingerprint({ finalBalance: 11000, finalDate: '2026-10-31', spent: 82000 });
+  const stale = closeDecision({ closed: false, votes: { t: v('close', other), k: v('close') }, currentFp: fp });
+  assert.equal(stale.action, null);
+  assert.equal(stale.status.t, 'stale');
+  // No final balance yet: nobody's close-down counts.
+  assert.equal(closeDecision({ closed: false, votes: { t: v('close', null), k: v('close', null) }, currentFp: null }).action, null);
+});
+
+test('reopening a closed month needs both', () => {
+  const r = { want: 'reopen', fp: null };
+  assert.equal(closeDecision({ closed: true, votes: { t: r, k: null }, currentFp: 'x' }).action, null);
+  assert.deepEqual(closeDecision({ closed: true, votes: { t: r, k: null }, currentFp: 'x' }).status, { t: 'reopen', k: 'waiting' });
+  assert.equal(closeDecision({ closed: true, votes: { t: r, k: r }, currentFp: 'x' }).action, 'reopen');
+  // After reopening, the old "reopen" votes don't close it again.
+  assert.equal(closeDecision({ closed: false, votes: { t: r, k: r }, currentFp: 'x' }).action, null);
+});
+
+test('close fingerprint changes when the result changes', () => {
+  const a = closeFingerprint({ finalBalance: 12000, finalDate: '2026-10-31', spent: 81000 });
+  assert.equal(a, closeFingerprint({ finalBalance: 12000, finalDate: '2026-10-31', spent: 81000 }));
+  assert.notEqual(a, closeFingerprint({ finalBalance: 12000, finalDate: '2026-10-31', spent: 81500 }));
+  assert.notEqual(a, closeFingerprint({ finalBalance: 12100, finalDate: '2026-10-31', spent: 81000 }));
+});

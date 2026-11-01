@@ -24,6 +24,8 @@ export function render(main, ctx) {
   const elsewhere = Object.entries(purchases.toSortElsewhere(month)).sort(([a], [b]) => a.localeCompare(b));
   const suggested = queue.filter((tx) => purchases.suggestionFor(tx)).length;
   const settlements = state.getSettlements().slice(0, 8);
+  // A closed month's purchases can only be personal or already settled (its result is agreed).
+  const closed = state.isClosed(month);
 
   const sorting = purchases.sortStatus();
   const lastSortedText = sorting.at
@@ -43,7 +45,7 @@ export function render(main, ctx) {
           `<button class="link-btn" data-goto-month="${esc(m)}">${n} in ${esc(monthLabel(m))}</button>`).join(', ')}</p>` : ''}
         ${suggested ? `<button class="btn" style="width:100%;margin-bottom:8px" data-act="accept">Accept ${suggested} suggestion${suggested > 1 ? 's' : ''}</button>` : ''}
         ${queue.length ? `<button class="btn small-btn" style="margin-bottom:8px" data-act="settle-before" title="Clear purchases that were balanced out some other way">Already settled before…</button>` : ''}
-        ${queue.length ? `<ul class="list">${queue.map((tx) => sortRow(tx)).join('')}</ul>` : `
+        ${queue.length ? `<ul class="list">${queue.map((tx) => sortRow(tx, closed)).join('')}</ul>` : `
           <p class="empty" data-testid="last-sorted">Everything is sorted. ${esc(lastSortedText)}</p>
           <details class="howto"><summary>How to export from Revolut</summary>
             <ol class="small">
@@ -71,12 +73,16 @@ export function render(main, ctx) {
         ${theirs.length ? `<p class="muted small" style="margin:12px 0 0" data-testid="other-pending">${esc(s.names[other])}: ${theirs.length} purchase${theirs.length > 1 ? 's' : ''}, ${formatCents(sum(theirs))} not withdrawn yet.</p>` : ''}
       </section>`;
 
+  const closedNote = closed ? `
+      <div class="notice" data-testid="closed-buys">${esc(monthLabel(month))} is closed down: its purchases can only be sorted as
+        personal or already settled. Withdrawing still works.</div>` : '';
   const reminder = sorting.overdue ? `
       <div class="notice" data-testid="sort-reminder">Last sorted ${esc(purchases.daysAgoLabel(sorting.daysAgo))}.
         Import your Revolut statement and sort your purchases soon, so the wallet balance is right.</div>` : '';
 
   main.innerHTML = `
     <div class="stack">
+${closedNote}
 ${reminder}
 ${sortCard}
 ${withdrawCard}
@@ -112,7 +118,10 @@ ${withdrawCard}
   main.querySelectorAll('[data-choose]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const tx = queue.find((t) => t.key === btn.dataset.choose);
-      purchases.choose(btn.dataset.choose, btn.dataset.choice);
+      if (!purchases.choose(btn.dataset.choose, btn.dataset.choice)) {
+        toast(closed ? `${monthLabel(month)} is closed down: this purchase can only be personal or already settled.` : 'This purchase can\'t change any more.');
+        return;
+      }
       toast(`${tx ? tx.description : 'Purchase'}: ${btn.dataset.choice}`);
     });
   });
@@ -140,7 +149,7 @@ function sum(list) {
   return list.reduce((a, e) => a + e.amount, 0);
 }
 
-function sortRow(tx) {
+function sortRow(tx, closed = false) {
   const suggestion = purchases.suggestionFor(tx);
   const hint = suggestion ? `<span class="suggest ${suggestion}">usually ${suggestion}</span>` : '';
   return `<li class="row sort-row">
@@ -149,7 +158,8 @@ function sortRow(tx) {
     <span class="amount">${formatCents(tx.amount)}</span>
     <span class="choice">
       <button class="chip-btn ${suggestion === 'personal' ? 'suggested' : ''}" data-choose="${esc(tx.key)}" data-choice="personal" aria-label="${esc(tx.description)}: personal">Personal</button>
-      <button class="chip-btn common ${suggestion === 'common' ? 'suggested' : ''}" data-choose="${esc(tx.key)}" data-choice="common" aria-label="${esc(tx.description)}: common">Common</button>
+      <button class="chip-btn common ${suggestion === 'common' ? 'suggested' : ''}" data-choose="${esc(tx.key)}" data-choice="common" aria-label="${esc(tx.description)}: common"
+        ${closed ? 'aria-disabled="true" title="The month is closed down"' : ''}>Common</button>
     </span>
   </li>`;
 }
@@ -320,12 +330,19 @@ async function addManual() {
     toast('Please enter an amount above 0');
     return;
   }
-  purchases.addManual(values);
+  if (!purchases.addManual(values)) {
+    toast(`${monthLabel(values.date.slice(0, 7))} is closed down: no new common purchases in it.`);
+    return;
+  }
   toast(`Added ${formatCents(values.amount)}`, { label: 'Undo', run: state.undo });
 }
 
 /** Tap a pending common purchase: move it back (imported) or delete it (typed in). */
 async function editExpense(e) {
+  if (state.isClosed(e.month)) {
+    toast(`${monthLabel(e.month)} is closed down: its common purchases can't change. Withdrawing still works.`);
+    return;
+  }
   const imported = Boolean(purchases.inboxEntryFor(e));
   const values = await openForm({
     title: e.description || 'Purchase',

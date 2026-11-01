@@ -11,9 +11,12 @@ import { APP_VERSION } from '../version.js';
 import { sortStatus, daysAgoLabel, toSort } from '../purchases.js';
 import { esc, toast, payerOptions } from './dom.js';
 import { openForm } from './form.js';
+import * as closedown from './closedown.js';
 
 export function render(main, ctx) {
   const { month, todayKey } = ctx;
+  // Both closed down (or both asked to reopen) since the last look? Apply it first.
+  state.applyCloseVotes(month);
   const { m, carry, startBalance } = state.planFor(month);
   const budget = m.walletBudget || 0;
   const checkins = state.checkinsFor(month);
@@ -30,9 +33,24 @@ export function render(main, ctx) {
   const versionTag = `<button class="sync-chip" id="sync-chip" data-testid="version" title="Sync now (Ctrl+S) · version ${esc(APP_VERSION)}">
     <span class="sync-text">Sync</span><span class="chip-version"> · ${esc(shortVersion)}</span></button>`;
 
-  if (!budget) {
+  // A closed month shows its final result; its wallet can't change any more.
+  if (state.isClosed(month)) {
     main.innerHTML = `
       <div class="stack">
+        ${closedown.closedCardHtml(month, versionTag)}
+        ${entriesCard(checkins, topups, startBalance, monthSettlements)}
+      </div>`;
+    closedown.bindCard(main, ctx);
+    bindEntries(main);
+    return;
+  }
+  const reminder = closedown.reminderHtml(ctx);
+  // The month is over: closing it down is the next step.
+  const closing = state.canCloseDown(month, todayKey);
+
+  if (!budget) {
+    main.innerHTML = `
+      <div class="stack">${reminder}
         <div class="page-top">${versionTag}</div>
         <section class="card">
           <h2>No wallet budget for ${esc(monthLabel(month))} yet</h2>
@@ -42,6 +60,7 @@ export function render(main, ctx) {
         </section>
         ${entriesCard(checkins, topups, startBalance, monthSettlements)}
       </div>`;
+    closedown.bindReminder(main, ctx);
     bindEntries(main);
     return;
   }
@@ -71,17 +90,18 @@ export function render(main, ctx) {
     ? `Revolut balance ${formatCents(lastCheckin.balance)} on ${shortDateLabel(lastCheckin.date)}`
     : 'Check in with the Revolut balance to see how you are doing';
 
-  const lockNotice = m.locked ? '' : `
+  const lockNotice = m.locked || closing ? '' : `
       <a class="notice" href="#month" data-testid="lock-notice">The budget for ${esc(monthLabel(month))} is not locked yet.
         Both of you approve it on the Month screen →</a>`;
 
   const sorting = sortStatus();
-  const sortNotice = sorting.overdue ? `
+  const sortNotice = sorting.overdue && !closing ? `
       <a class="notice" href="#buys" data-testid="wallet-sort-reminder">Purchases last sorted ${esc(daysAgoLabel(sorting.daysAgo))}.
         Sort and withdraw them before checking in →</a>` : '';
 
   main.innerHTML = `
-    <div class="stack">${lockNotice}${sortNotice}
+    <div class="stack">${reminder}${lockNotice}${sortNotice}
+      ${closing ? closedown.closeCardHtml(month) : ''}
       <section class="card hero" aria-label="Wallet status">
         <div class="hero-top"><span class="label">Budget left</span>${versionTag}</div>
         <div class="big num ${budget - spent < 0 ? 'negative' : ''}" data-testid="remaining">${formatCents(budget - spent)}</div>
@@ -98,7 +118,7 @@ export function render(main, ctx) {
       </section>
 
       <div class="btn-row grow">
-        <button class="btn primary" data-act="checkin" title="Check in the Revolut balance (C)">Check in balance <kbd>C</kbd></button>
+        <button class="btn ${closing ? '' : 'primary'}" data-act="checkin" title="Check in the Revolut balance (C)">Check in balance <kbd>C</kbd></button>
       </div>
       ${pendingLine}
       <p class="muted small" style="margin-top:8px" data-testid="balance-line">${esc(balanceLine)}${extras.length ? ` · includes ${esc(extras.join(' + '))}` : ''}</p>
@@ -120,6 +140,8 @@ export function render(main, ctx) {
 
   main.querySelector('[data-act="checkin"]').addEventListener('click', () => checkIn(ctx));
   main.querySelector('[data-act="topup"]').addEventListener('click', () => addTopup(ctx));
+  closedown.bindReminder(main, ctx);
+  closedown.bindCard(main, ctx);
   bindEntries(main);
 }
 
@@ -154,9 +176,11 @@ function entriesCard(checkins, topups, startBalance, settlements = []) {
       if (e.note) details.push(e.note);
     } else if (e.balance != null) {
       badge = '✓';
-      title = 'Balance';
+      title = e.final ? 'Final balance' : 'Balance';
       amount = formatCents(e.balance);
-      details.push(`${formatCents(checkinSpent(e, startBalance, topups))} spent`);
+      // The final result (with purchases not withdrawn yet) is shown above; don't show a second "spent".
+      if (e.final) details.push('end of month');
+      else details.push(`${formatCents(checkinSpent(e, startBalance, topups))} spent`);
     } else {
       badge = '✓';
       title = 'Spent so far (old check-in)';
@@ -181,6 +205,7 @@ function bindEntries(main) {
     btn.addEventListener('click', () => {
       const rec = state.allRecords()[btn.dataset.edit];
       if (rec.type === 'settlement') location.hash = 'buys';
+      else if (rec.final && !state.isClosed(rec.month)) closedown.closeDown({ month: rec.month }); // change it by closing down again
       else if (rec.type === 'topup') addTopup(null, rec);
       else checkIn(null, rec);
     });
@@ -225,9 +250,17 @@ async function askSorted() {
   return answer !== null;
 }
 
+/** True (and says so) when the month is closed down, so its wallet can't change. */
+function refuseClosed(month) {
+  if (!state.isClosed(month)) return false;
+  toast(closedown.closedMessage(month));
+  return true;
+}
+
 export async function checkIn(ctx, existing = null) {
-  if (!existing && !(await askSorted())) return;
   const month = existing ? existing.month : ctx.month;
+  if (refuseClosed(month)) return;
+  if (!existing && !(await askSorted())) return;
   const start = state.planFor(month).startBalance;
   const values = await openForm({
     title: existing ? 'Edit check-in' : 'Check in balance',
@@ -245,6 +278,7 @@ export async function checkIn(ctx, existing = null) {
     toast('Check-in deleted', { label: 'Undo', run: state.undo });
     return;
   }
+  if (refuseClosed(values.date.slice(0, 7))) return;
   state.put({
     id: existing?.id || state.newId('ci'), type: 'checkin',
     month: values.date.slice(0, 7), date: values.date, balance: values.balance, spent: null,
@@ -254,6 +288,7 @@ export async function checkIn(ctx, existing = null) {
 }
 
 export async function addTopup(ctx, existing = null) {
+  if (refuseClosed(existing ? existing.month : ctx.month)) return;
   const values = await openForm({
     title: existing ? 'Edit added money' : 'Add money to the wallet',
     fields: [
@@ -276,6 +311,7 @@ export async function addTopup(ctx, existing = null) {
     toast('Please enter an amount above 0');
     return;
   }
+  if (refuseClosed(values.date.slice(0, 7))) return;
   state.put({
     id: existing?.id || state.newId('tu'), type: 'topup',
     month: values.date.slice(0, 7), date: values.date, amount: values.amount,

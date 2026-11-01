@@ -6,8 +6,11 @@
 
 import * as storage from './storage.js';
 import { mergeRecords } from './lib/merge.js';
-import { addMonths, dateKeyOf } from './lib/months.js';
-import { monthPlan, spreadSharesForMonth, walletStartBalance, lastBalance, budgetFingerprint, lockDecision } from './lib/budget.js';
+import { addMonths, dateKeyOf, daysInMonth } from './lib/months.js';
+import {
+  monthPlan, spreadSharesForMonth, walletStartBalance, lastBalance, budgetFingerprint, lockDecision,
+  walletSpent, closeFingerprint, closeDecision,
+} from './lib/budget.js';
 
 let records = storage.loadRecords();
 let dirty = storage.loadDirty();
@@ -63,7 +66,11 @@ export function setDevice(changes) {
 
 // ---------- changing data ----------
 
-function commit(list, { recordUndo = true } = {}) {
+function commit(changes, { recordUndo = true } = {}) {
+  // Nothing may change the wallet of a month that both have closed down
+  // (this also catches undo/redo of older steps).
+  const list = changes.filter((r) => !blockedByClose(r));
+  if (!list.length) return [];
   const before = list.map((r) => records[r.id] || null);
   const after = [];
   for (const rec of list) {
@@ -109,17 +116,17 @@ export function undo() {
   if (!step) return false;
   // Restoring an old version is itself a new change, so it syncs normally.
   const list = step.before.map((old, i) => old ? { ...old } : { ...step.after[i], deleted: true });
-  commit(list, { recordUndo: false });
+  const done = commit(list, { recordUndo: false });
   redoStack.push(step);
-  return true;
+  return done.length > 0;
 }
 
 export function redo() {
   const step = redoStack.pop();
   if (!step) return false;
-  commit(step.after.map((r) => ({ ...r })), { recordUndo: false });
+  const done = commit(step.after.map((r) => ({ ...r })), { recordUndo: false });
   undoStack.push(step);
-  return true;
+  return done.length > 0;
 }
 
 // ---------- used by sync.js ----------
@@ -309,6 +316,118 @@ export function applyLockVotes(key) {
     putQuietly({ id: `month:${key}`, type: 'month', month: key, locked: false, lockedShares: null });
   }
   return action;
+}
+
+// ---------- closing down a month's wallet ----------
+//
+// When a month is over, both people close down its wallet: the first one enters
+// the Revolut balance at the end of the month (the "final check-in"), and each
+// confirms that all their purchases from that month are sorted. Once both have
+// closed down with the same numbers, the month is closed: its final result is
+// kept, and nothing in its wallet can change until both agree to reopen it.
+
+const finalId = (key) => `checkin:${key}:final`;
+const lastDayOf = (key) => `${key}-${String(daysInMonth(key)).padStart(2, '0')}`;
+
+/** The month's final check-in (balance at the end of the month), or null. */
+export function getFinalCheckin(key) {
+  const r = records[finalId(key)];
+  return r && !r.deleted ? r : null;
+}
+
+/**
+ * The month's final result: { finalBalance, finalDate, spent, budget }, or null without a final balance.
+ * `fin` can stand in for the final check-in (to work out the result before saving it).
+ */
+export function closingResult(key, fin = getFinalCheckin(key)) {
+  if (!fin) return null;
+  const { m, startBalance } = planFor(key);
+  const { spent } = walletSpent({
+    checkins: [fin], startBalance, topups: topupsFor(key),
+    expenses: getExpenses(), settlements: getSettlements(), monthKey: key,
+  });
+  return { finalBalance: fin.balance, finalDate: fin.date, spent, budget: m.walletBudget || 0 };
+}
+
+export const isClosed = (key) => Boolean(getMonth(key)?.closed);
+
+/** A month can be closed down once it is over, if it had a wallet budget. */
+export const canCloseDown = (key, todayKey) => key < todayKey.slice(0, 7) && (getMonth(key)?.walletBudget || 0) > 0;
+
+/** Last month, if it still needs closing down (reminder in the new month), else null. */
+export function monthToClose(todayKey) {
+  const prev = addMonths(todayKey.slice(0, 7), -1);
+  return canCloseDown(prev, todayKey) && !isClosed(prev) ? prev : null;
+}
+
+/** Each person's close-down vote: { want: 'close'|'reopen', fp, at } or null. One record per person. */
+export function getCloseVotes(key) {
+  const votes = { t: null, k: null };
+  for (const p of ['t', 'k']) {
+    const r = records[`closevote:${key}:${p}`];
+    if (r && !r.deleted) votes[p] = { want: r.want, fp: r.fp, at: r.at };
+  }
+  return votes;
+}
+
+/** Close-down status for the screen: { closed, result, action, status: { t, k } }. */
+export function closeInfo(key) {
+  const closed = isClosed(key);
+  const result = closingResult(key);
+  const currentFp = result ? closeFingerprint(result) : null;
+  return { closed, result, ...closeDecision({ closed, votes: getCloseVotes(key), currentFp }) };
+}
+
+/**
+ * This phone's owner closes down the month (with the final balance), asks to
+ * reopen it, or withdraws (want = null). One change, one undo step.
+ */
+export function voteClose(key, want, finalBalance = null) {
+  const changes = [];
+  let fin = getFinalCheckin(key);
+  if (want === 'close' && finalBalance !== null && (!fin || fin.balance !== finalBalance)) {
+    fin = {
+      id: finalId(key), type: 'checkin', month: key, date: lastDayOf(key), balance: finalBalance,
+      spent: null, final: true, createdAt: new Date().toISOString(),
+    };
+    changes.push(fin);
+  }
+  const result = want === 'close' ? closingResult(key, fin) : null;
+  changes.push({
+    id: `closevote:${key}:${device.me}`, type: 'closevote', month: key, person: device.me,
+    want, fp: result ? closeFingerprint(result) : null, at: new Date().toISOString(),
+  });
+  put(...changes);
+  return applyCloseVotes(key);
+}
+
+/**
+ * Close or reopen when both votes agree. Runs on whichever phone notices first
+ * (after a vote or after a sync); doing it twice is harmless.
+ * The result is kept on the month record, so it stays exactly as agreed.
+ */
+export function applyCloseVotes(key) {
+  const { action, result } = closeInfo(key);
+  if (action === 'close') {
+    putQuietly({ id: `month:${key}`, type: 'month', month: key, closed: true, closedAt: new Date().toISOString(), closedResult: result });
+  } else if (action === 'reopen') {
+    putQuietly({ id: `month:${key}`, type: 'month', month: key, closed: false, closedResult: null });
+  }
+  return action;
+}
+
+/**
+ * Would this change touch the wallet of a closed month? Check-ins, added money and
+ * common purchases are fixed then. Linking a common purchase to a withdrawal is
+ * still fine: it doesn't change what the month spent.
+ */
+export function blockedByClose(rec) {
+  if (!['checkin', 'topup', 'expense'].includes(rec.type)) return false;
+  const old = records[rec.id];
+  if (![rec.month, old?.month].some((k) => k && isClosed(k))) return false;
+  if (rec.type !== 'expense' || !old) return true;
+  return old.month !== rec.month || old.date !== rec.date || old.amount !== rec.amount
+    || Boolean(old.deleted) !== Boolean(rec.deleted);
 }
 
 // ---------- common purchases paid with private money ----------

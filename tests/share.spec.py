@@ -36,8 +36,10 @@ SHARE = """async ({ text, name }) => {
 
 with sync_playwright() as p:
     b = p.chromium.launch()
-    ctx = b.new_context()
+    ctx = b.new_context(locale="en-GB", timezone_id="Europe/Berlin")
     page = ctx.new_page()
+    # The test statement is from October 2026: pin the date so the test doesn't depend on today.
+    page.clock.install(time="2026-10-31T10:00:00+01:00")
     page.goto(BASE)
     page.evaluate("navigator.serviceWorker.ready")
     page.reload()
